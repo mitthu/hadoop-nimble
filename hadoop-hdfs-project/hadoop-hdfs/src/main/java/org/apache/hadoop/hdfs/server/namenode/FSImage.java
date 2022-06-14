@@ -24,6 +24,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.hadoop.hdfs.Nimble;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1002,6 +1007,13 @@ public class FSImage implements Closeable {
 
     MD5FileUtils.saveMD5File(dstFile, saver.getSavedDigest());
     storage.setMostRecentCheckpointInfo(txid, Time.now());
+
+    // Save nimble metadata
+    try (Nimble n = new Nimble(conf)) {
+      n.saveFSImageInfo(sd, newFile, saver.getSavedDigest().getDigest());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   /**

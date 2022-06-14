@@ -4,6 +4,9 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.server.common.Storage;
+import org.apache.hadoop.hdfs.server.namenode.FSImage;
+import org.apache.hadoop.hdfs.server.namenode.NNStorage;
 import org.apache.hadoop.thirdparty.com.google.common.io.BaseEncoding;
 import org.apache.hadoop.util.JsonSerialization;
 import org.apache.http.HttpEntity;
@@ -19,6 +22,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import javax.ws.rs.core.UriBuilder;
+import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URI;
@@ -26,9 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
+import java.util.*;
 
 /* Error handling */
 class NimbleError extends IOException {
@@ -260,12 +262,32 @@ class NimbleOpIncrementCounter extends NimbleOp {
 }
 
 
+/* Store & load configuration */
+class NimbleConf {
+    public static byte[]          handle;
+    public static NimbleServiceID id;
+
+    public synchronized static void initialize(Configuration conf) {
+        if (handle != null) {
+            return; // already initialized
+        }
+        handle = "namenode".getBytes(StandardCharsets.UTF_8);
+    }
+
+    public static void initialize() {
+        initialize(new Configuration());
+    }
+}
+
+
 /* Main class */
 public class Nimble implements java.io.Closeable {
     static Logger logger = Logger.getLogger(Nimble.class);
 
-    public static final String NIMBLEURI_KEY    = "fs.nimbleURI";
-    public static final String NIMBLEURI_DEFAULT = "http://[::1]:8082/";
+    public static final String NIMBLEURI_KEY            = "fs.nimbleURI";
+    public static final String NIMBLEURI_DEFAULT        = "http://[::1]:8082/";
+    public static final String NIMBLE_INFO              = "NIMBLE";
+    public static final String NIMBLE_FSIMAGE_EXTENSION = ".nimble";
 
     private URI nimble_rest_uri;
     private CloseableHttpClient httpClient;
@@ -440,6 +462,47 @@ public class Nimble implements java.io.Closeable {
         }
     }
 
+    public static File getNimbleInfo(Storage.StorageDirectory sd) {
+        if (sd.getRoot() == null) {
+            return null;
+        }
+        return new File(sd.getCurrentDir(), NIMBLE_INFO);
+    }
+
+    public static void saveNimbleInfo(Storage.StorageDirectory sd, Nimble n) throws IOException {
+        File nimble_info = getNimbleInfo(sd);
+        if (nimble_info == null) {
+            return;
+        }
+        Properties props = new Properties();
+        props.setProperty("identity", Nimble.URLEncode(n.serviceID.identity));
+        props.setProperty("publicKey", Nimble.URLEncode(n.serviceID.publicKey));
+        // add local signing keys to "this", or "another file"? (actually stored in Azure Key Vault)
+        Storage.writeProperties(nimble_info, props);
+        logger.info(props);
+    }
+
+    public void saveFSImageInfo(Storage.StorageDirectory sd, File fsimage, byte[] digest) throws IOException {
+        // Ensure handle exists
+        try {
+            NimbleConf.initialize();
+            newCounter(NimbleConf.handle, "initialize".getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            // ignore NimbleError in case of conflict
+        }
+
+        // Prepare data
+        Properties props = new Properties();
+//        props.setProperty("sha256sum", Nimble.URLEncode(digest));
+        props.setProperty("md5sum", Nimble.URLEncode(digest));
+        props.setProperty("counter", String.valueOf(readLatest(NimbleConf.handle).counter));
+
+        // Store data
+        File nimble_info = new File(fsimage.getAbsolutePath()+NIMBLE_FSIMAGE_EXTENSION);
+        Storage.writeProperties(nimble_info, props);
+        logger.info(props);
+    }
+
     /* For development and testing only */
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, InvalidKeySpecException, SignatureException, InvalidParameterSpecException, DecoderException {
         logger.setLevel(Level.DEBUG);
@@ -447,41 +510,66 @@ public class Nimble implements java.io.Closeable {
         Configuration conf = new Configuration();
 
         try (Nimble n = new Nimble(conf)) {
-            // Step 0: Sanity checks
-//            test_verify_1(n);
-//            test_verify_2(n);
-
-            // Step 1: NewCounter Request
-            byte[] handle = getNonce();
-            byte[] tag = "some-tag-value".getBytes();
-            NimbleOp op;
-
-            op = n.newCounter(handle, tag);
-            logger.info("NewCounter (verify): " + op.verify());
-
-            // Step 2: Read Latest w/ Nonce
-            op = n.readLatest(handle);
-            logger.info("ReadLatest (verify): " + op.verify());
-
-            // Step 3: Increment Counter
-            op = n.incrementCounter(handle, "tag_1".getBytes(), 1);
-            logger.info("IncrementCounter " + "tag=tag_1 counter=1" + " (verify): " + op.verify());
-
-            op = n.incrementCounter(handle, "tag_2".getBytes(), 2);
-            logger.info("IncrementCounter " + "tag=tag_2 counter=2" + " (verify): " + op.verify());
-
-            // Step 4: Read Latest w/ Nonce
-            op = n.readLatest(handle);
-
-            assert op.tag == "tag_2".getBytes();
-            assert op.counter == 2;
-            logger.info("Verify readLatest: " + op.verify());
+            test_metadata(conf, n);
+            test_workflow(n);
         }
     }
 
     /**
-     * From output of light_client_rest
+     * Nimble-related metadata
      */
+    public static void test_metadata(Configuration conf, Nimble n) throws IOException {
+        // Store handle in persistent file
+        FSImage image = new FSImage(conf);
+        NNStorage storage = image.getStorage();
+        storage.format(); // creates dirs
+
+        // Save TMCS ID to all storage directories
+        for (Iterator<Storage.StorageDirectory> it = storage.dirIterator(); it.hasNext();) {
+            Storage.StorageDirectory sd = it.next();
+            logger.info(sd);
+            saveNimbleInfo(sd, n);
+        }
+    }
+
+    /**
+     * Test TMCS Nimble API
+     */
+    public static void test_workflow(Nimble n) throws IOException {
+        // Step 0: Sanity checks
+//            test_verify_1(n);
+//            test_verify_2(n);
+
+        // Step 1: NewCounter Request
+        byte[]   handle = getNonce();
+        byte[]   tag    = "some-tag-value".getBytes();
+        NimbleOp op;
+
+        op = n.newCounter(handle, tag);
+        logger.info("NewCounter (verify): " + op.verify());
+
+        // Step 2: Read Latest w/ Nonce
+        op = n.readLatest(handle);
+        logger.info("ReadLatest (verify): " + op.verify());
+
+        // Step 3: Increment Counter
+        op = n.incrementCounter(handle, "tag_1".getBytes(), 1);
+        logger.info("IncrementCounter " + "tag=tag_1 counter=1" + " (verify): " + op.verify());
+
+        op = n.incrementCounter(handle, "tag_2".getBytes(), 2);
+        logger.info("IncrementCounter " + "tag=tag_2 counter=2" + " (verify): " + op.verify());
+
+        // Step 4: Read Latest w/ Nonce
+        op = n.readLatest(handle);
+
+        assert op.tag == "tag_2".getBytes();
+        assert op.counter == 2;
+        logger.info("Verify readLatest: " + op.verify());
+    }
+
+   /**
+    * From output of light_client_rest
+    */
     public static void test_verify_1(Nimble n) throws SignatureException, NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException {
         String d_str = "cix-tx9U14vwW-U50K-l9uRe17FWZGX3VqvvII4nIg0",
                 s_str = "0Cku2NbVNZAC6OOQIHCxDFEnff7ManHLu1hlrDfurNmAXiFUsQ8ddIvM4i5-oG7JsyCbEstNUWouAKdD8x-f5A";
