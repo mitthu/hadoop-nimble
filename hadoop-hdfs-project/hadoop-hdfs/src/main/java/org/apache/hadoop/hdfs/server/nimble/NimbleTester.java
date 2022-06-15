@@ -1,0 +1,130 @@
+package org.apache.hadoop.hdfs.server.nimble;
+
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.server.common.Storage;
+import org.apache.hadoop.hdfs.server.namenode.FSImage;
+import org.apache.hadoop.hdfs.server.namenode.NNStorage;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+
+import java.io.IOException;
+import java.security.*;
+import java.security.spec.*;
+import java.util.*;
+
+
+/* Main class */
+public class NimbleTester {
+    static Logger logger = Logger.getLogger(NimbleTester.class);
+
+    /* For development and testing only */
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, InvalidKeySpecException, SignatureException, InvalidParameterSpecException, DecoderException {
+        logger.setLevel(Level.DEBUG);
+        logger.debug("Run Nimble workflow for testing");
+        Configuration conf = new Configuration();
+
+        try (NimbleAPI n = new NimbleAPI(conf)) {
+            test_metadata(conf, n);
+            test_workflow(n);
+        }
+    }
+
+    /**
+     * Nimble-related metadata
+     */
+    public static void test_metadata(Configuration conf, NimbleAPI n) throws IOException {
+        // Store handle in persistent file
+        FSImage image = new FSImage(conf);
+        NNStorage storage = image.getStorage();
+        storage.format(); // creates dirs
+
+        // Save TMCS ID to all storage directories
+        for (Iterator<Storage.StorageDirectory> it = storage.dirIterator(); it.hasNext();) {
+            Storage.StorageDirectory sd = it.next();
+            logger.info(sd);
+//            saveNimbleInfo(sd, n);
+        }
+    }
+
+    /**
+     * Test TMCS Nimble API
+     */
+    public static void test_workflow(NimbleAPI n) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException {
+        NimbleServiceID id = NimbleUtils.loadAndValidateNimbleInfo(n);
+        logger.info(id);
+        // Step 0: Sanity checks
+//        test_verify_1(n);
+//        test_verify_2(n);
+
+        // Step 1: NewCounter Request
+        byte[]   handle = NimbleUtils.getNonce();
+        byte[]   tag    = "some-tag-value".getBytes();
+        NimbleOp op;
+
+        op = n.newCounter(id, tag);
+        logger.info("NewCounter (verify): " + op.verify());
+
+        // Step 2: Read Latest w/ Nonce
+        op = n.readLatest(id);
+        logger.info("ReadLatest (verify): " + op.verify());
+
+        // Step 3: Increment Counter
+        op = n.incrementCounter(id, "tag_1".getBytes(), 1);
+        logger.info("IncrementCounter " + "tag=tag_1 counter=1" + " (verify): " + op.verify());
+
+        op = n.incrementCounter(id, "tag_2".getBytes(), 2);
+        logger.info("IncrementCounter " + "tag=tag_2 counter=2" + " (verify): " + op.verify());
+
+        // Step 4: Read Latest w/ Nonce
+        op = n.readLatest(id);
+
+        assert op.tag == "tag_2".getBytes();
+        assert op.counter == 2;
+        logger.info("Verify readLatest: " + op.verify());
+    }
+
+   /**
+    * From output of light_client_rest
+    */
+    public static void test_verify_1(NimbleAPI n) throws NoSuchAlgorithmException, NoSuchProviderException, IOException, InvalidParameterSpecException, InvalidKeySpecException, SignatureException, InvalidKeyException {
+        NimbleServiceID id = n.getServiceID();
+        String d_str = "cix-tx9U14vwW-U50K-l9uRe17FWZGX3VqvvII4nIg0",
+                s_str = "0Cku2NbVNZAC6OOQIHCxDFEnff7ManHLu1hlrDfurNmAXiFUsQ8ddIvM4i5-oG7JsyCbEstNUWouAKdD8x-f5A";
+        byte[]  d   = NimbleUtils.URLDecode(d_str), s = NimbleUtils.URLDecode(s_str);
+        boolean res = id.verifySignature(s, d);
+        logger.info("pk = " + NimbleOp.toNimbleStringRepr(id.publicKey));
+
+        logger.info("digest = " + NimbleOp.toNimbleStringRepr(d));
+        logger.info("signature = " + NimbleOp.toNimbleStringRepr(s));
+        logger.info("digest = " + new String(d));
+        logger.info("signature = " + new String(s));
+
+        logger.info("Signature verification: " + res);
+    }
+
+    /**
+     * From ledger/src/signature.rs: test_compressed_pk_and_raw_signature_encoding()
+     */
+    public static void test_verify_2(NimbleAPI n) throws DecoderException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException {
+        String
+                pk = "03A60909370C9CCB5DD3B909654AE158E21C4EE35C7A291C7197F38E22CA95B858",
+                r = "3341835E0BA33047E0B472F5622B157ED5879085213A1777963571220E48BF0F",
+                s = "8B630A0251F157CAB579FD3D589969A92CCC75C9B5058E2BF77F7038D352DF10",
+                m = "0000000000000000000000000000000000000000000000000000000000000000";
+        byte[]
+                pk_b = Hex.decodeHex(pk.toCharArray()),
+                r_b = Hex.decodeHex(r.toCharArray()),
+                s_b = Hex.decodeHex(s.toCharArray()),
+                m_b = Hex.decodeHex(m.toCharArray()),
+                sig_b = new byte[r_b.length + s_b.length];
+        System.arraycopy(r_b, 0, sig_b, 0, r_b.length);
+        System.arraycopy(s_b, 0, sig_b, r_b.length, s_b.length);
+
+        NimbleServiceID service = new NimbleServiceID(new byte[]{}, pk_b, null);
+        logger.info(service);
+        boolean signature = service.verifySignature(sig_b, m_b);
+        logger.info("Signature: " + signature);
+    }
+}

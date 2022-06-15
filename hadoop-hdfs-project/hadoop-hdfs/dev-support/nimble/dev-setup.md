@@ -98,11 +98,11 @@ lxc exec namenode -- bash
 Testing Nimble:
 ```bash
 # From host
-java -cp 'hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-3.3.3.jar:hadoop-dist/target/hadoop-3.3.3/etc/hadoop:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/*' org.apache.hadoop.hdfs.Nimble
+java -cp 'hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-3.3.3.jar:hadoop-dist/target/hadoop-3.3.3/etc/hadoop:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/*' org.apache.hadoop.hdfs.server.nimble.NimbleTester
 
 # From container
 export CLASSPATH=/opt/hadoop-3.3.3/etc/hadoop:/opt/hadoop-3.3.3/share/hadoop/common/lib/*:/opt/hadoop-3.3.3/share/hadoop/common/*:/opt/hadoop-3.3.3/share/hadoop/hdfs:/opt/hadoop-3.3.3/share/hadoop/hdfs/lib/*:/opt/hadoop-3.3.3/share/hadoop/hdfs/*:/opt/hadoop-3.3.3/share/hadoop/mapreduce/*:/opt/hadoop-3.3.3/share/hadoop/yarn/lib/*:/opt/hadoop-3.3.3/share/hadoop/yarn/*
-java -cp hadoop-hdfs-3.3.3.jar:$CLASSPATH org.apache.hadoop.hdfs.Nimble
+java -cp hadoop-hdfs-3.3.3.jar:$CLASSPATH org.apache.hadoop.hdfs.server.nimble.NimbleTester
 ```
 
 Compile and run Nimble only (for development):
@@ -111,7 +111,7 @@ Compile and run Nimble only (for development):
 mkdir tmp/
 javac -d tmp/ -cp 'hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-3.3.3.jar:hadoop-dist/target/hadoop-3.3.3/etc/hadoop:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/*' \
   hadoop-hdfs-project/hadoop-hdfs/src/main/java/org/apache/hadoop/hdfs/Nimble.java
-java -cp 'tmp/:hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-3.3.3.jar:hadoop-dist/target/hadoop-3.3.3/etc/hadoop:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/*' org.apache.hadoop.hdfs.Nimble
+java -cp 'tmp/:hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-3.3.3.jar:hadoop-dist/target/hadoop-3.3.3/etc/hadoop:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/common/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/lib/*:hadoop-dist/target/hadoop-3.3.3/share/hadoop/hdfs/*' org.apache.hadoop.hdfs.server.nimble.NimbleTester
 
 # In container (after doing above)
 lxc file push -r tmp/org namenode/root/
