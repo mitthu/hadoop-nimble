@@ -2,17 +2,12 @@ package org.apache.hadoop.hdfs.server.nimble;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.Storage;
-import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.InvalidParameterSpecException;
 
 public class TMCS implements Closeable {
     static Logger logger = Logger.getLogger(TMCS.class);
@@ -74,16 +69,21 @@ public class TMCS implements Closeable {
     /**
      * Refresh service identity and create new ledger handle.
      */
-    public synchronized static void format(Configuration conf) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException {
+    public synchronized static void format(Configuration conf) throws IOException {
         if (instance == null) {
             instance = new TMCS(conf);
         }
 
-        instance.id = instance.api.getServiceID();
-        instance.id.handle = NimbleUtils.getNonce();
-        // newCounter whose tag=[hostname]
-        instance._initialize(InetAddress.getLocalHost().getHostName().getBytes(StandardCharsets.UTF_8));
-        logger.info("Formatted TMCS: " + instance.id);
+        try {
+            instance.id = instance.api.getServiceID();
+            instance.id.handle = NimbleUtils.getNonce();
+            // newCounter whose tag=[hostname]
+            instance._initialize(InetAddress.getLocalHost().getHostName().getBytes(StandardCharsets.UTF_8));
+            logger.info("Formatted TMCS: " + instance.id);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new NimbleError(e.getMessage());
+        }
     }
 
     public synchronized void save(Storage.StorageDirectory sd) throws IOException {

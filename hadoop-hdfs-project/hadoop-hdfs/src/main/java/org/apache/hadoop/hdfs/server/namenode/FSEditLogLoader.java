@@ -1052,6 +1052,7 @@ public class FSEditLogLoader {
     default:
       throw new IOException("Invalid operation read " + op.opCode);
     }
+    fsNamesys.getEditLog().getTMCSEdits().add(op);
     return inodeId;
   }
   

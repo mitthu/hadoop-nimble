@@ -181,6 +181,7 @@ public class NimbleUtils {
      * Called from FSImageSaver to load "fsimage_###.nimble"
      */
     public static NimbleFSImageInfo getFSImageInfo(File fsimage) throws IOException {
+        logger.info("getFSImageInfo for: "+fsimage);
         File nimble_info = new File(fsimage.getParentFile(), fsimage.getName() + NIMBLE_FSIMAGE_EXTENSION);
         Properties props = Storage.readPropertiesFile(nimble_info);
         byte[] digest_curr = NimbleUtils.checksum(fsimage);
@@ -245,7 +246,7 @@ public class NimbleUtils {
         return BaseEncoding.base64Url().decode(value);
     }
 
-    private static MessageDigest _checksum() throws NimbleError {
+    protected static MessageDigest _checksum() throws NimbleError {
         try {
             return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {

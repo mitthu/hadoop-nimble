@@ -4,11 +4,16 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.Storage;
+import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp;
 import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.hadoop.hdfs.server.namenode.NNStorage;
+import org.apache.hadoop.hdfs.util.XMLUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.xml.sax.ContentHandler;
+import org.xml.sax.SAXException;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.*;
@@ -35,10 +40,11 @@ public class NimbleTester {
     /**
      * Nimble-related metadata
      */
-    public static void format_storage(Configuration conf) throws IOException {
+    public static void format_storage(Configuration conf) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException {
         logger.info("Formatting storage");
         FSImage image = new FSImage(conf);
         NNStorage storage = image.getStorage();
+        TMCS.format(conf); // otherwise, the call below will fail
         storage.format();
 
         // Log storage dirs.
@@ -54,7 +60,7 @@ public class NimbleTester {
     public static void test_TMCS() throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException {
         logger.info("Testing TMCS");
         TMCS tmcs = TMCS.getInstance();
-        tmcs.format(new Configuration());
+        TMCS.format(new Configuration());
         NimbleOp op;
 
         tmcs.initialize("fsimage".getBytes());

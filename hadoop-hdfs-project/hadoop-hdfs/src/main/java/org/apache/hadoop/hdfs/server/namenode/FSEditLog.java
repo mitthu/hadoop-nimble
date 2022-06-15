@@ -20,6 +20,7 @@ package org.apache.hadoop.hdfs.server.namenode;
 import static org.apache.hadoop.util.ExitUtil.terminate;
 import static org.apache.hadoop.util.Time.monotonicNow;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
@@ -102,6 +103,7 @@ import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.DisableErasureCodingPo
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.RemoveErasureCodingPolicyOp;
 import org.apache.hadoop.hdfs.server.namenode.JournalSet.JournalAndStream;
 import org.apache.hadoop.hdfs.server.namenode.metrics.NameNodeMetrics;
+import org.apache.hadoop.hdfs.server.nimble.TMCSEditLog;
 import org.apache.hadoop.hdfs.server.protocol.NamenodeRegistration;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.server.protocol.RemoteEditLogManifest;
@@ -185,6 +187,7 @@ public class FSEditLog implements LogsPurgeable {
   private final LongAdder numTransactionsBatchedInSync = new LongAdder();
   private long totalTimeTransactions;  // total time for all transactions
   private NameNodeMetrics metrics;
+  private TMCSEditLog tmcsEdits;
 
   private final NNStorage storage;
   private final Configuration conf;
@@ -256,7 +259,19 @@ public class FSEditLog implements LogsPurgeable {
 
     this.sharedEditsDirs = FSNamesystem.getSharedEditsDirs(conf);
   }
-  
+
+  public TMCSEditLog getTMCSEdits() {
+    return tmcsEdits;
+  }
+
+  public synchronized void ensureTMCSEditsIsInitialized() throws IOException {
+    if (tmcsEdits != null)
+      return;
+    File f = storage.getHighestFsImageName();
+    LOG.info("Base editLogs off: " + f);
+    this.tmcsEdits = new TMCSEditLog(true, f);
+  }
+
   public synchronized void initJournalsForWrite() {
     Preconditions.checkState(state == State.UNINITIALIZED ||
         state == State.CLOSED, "Unexpected state: %s", state);
@@ -486,6 +501,8 @@ public class FSEditLog implements LogsPurgeable {
 
     long start = monotonicNow();
     try {
+//      LOG.info("Filename for FSImage: " + storage.getHighestFsImageName());
+      tmcsEdits.add(op);
       editLogStream.write(op);
     } catch (IOException ex) {
       // All journals failed, it is handled in logSync.
@@ -1395,7 +1412,7 @@ public class FSEditLog implements LogsPurgeable {
     setNextTxId(txid);
     startLogSegment(txid, layoutVersion);
   }
-  
+
   /**
    * Start writing to the log segment with the given txid.
    * Transitions from BETWEEN_LOG_SEGMENTS state to IN_LOG_SEGMENT state. 
