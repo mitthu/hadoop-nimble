@@ -37,12 +37,21 @@ class NimbleUtils {
         return new File(sd.getCurrentDir(), NimbleUtils.NIMBLE_INFO);
     }
 
+    /**
+     * If Nimble metadata is stored on filesystem, then
+     * return it after verifying identity of server.
+     *
+     * If no metatdata is stored, then retrieve it from
+     * the server. A new *random* handle is generated.
+     *
+     * NOTE: New metadata is *not saved* to disk.
+     */
     public static NimbleServiceID loadAndValidateNimbleInfo(NimbleAPI n) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException {
         NimbleServiceID
                 serverID = n.getServiceID(),
                 savedID = NimbleUtils.loadNimbleInfo(n.conf);
 
-        if (!savedID.valid()) { /* we don't have saved ID */
+        if (savedID == null || !savedID.valid()) { /* we don't have saved ID */
             serverID.handle = getNonce();
             NimbleUtils.saveNimbleInfo(n.conf, serverID);
             return serverID;

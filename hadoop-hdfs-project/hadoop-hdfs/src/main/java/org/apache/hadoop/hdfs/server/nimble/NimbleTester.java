@@ -26,44 +26,61 @@ public class NimbleTester {
         Configuration conf = new Configuration();
 
         try (NimbleAPI n = new NimbleAPI(conf)) {
-            test_metadata(conf, n);
             test_workflow(n);
         }
+        format_storage(conf);
+        test_TMCS();
     }
 
     /**
      * Nimble-related metadata
      */
-    public static void test_metadata(Configuration conf, NimbleAPI n) throws IOException {
-        // Store handle in persistent file
+    public static void format_storage(Configuration conf) throws IOException {
+        logger.info("Formatting storage");
         FSImage image = new FSImage(conf);
         NNStorage storage = image.getStorage();
-        storage.format(); // creates dirs
+        storage.format();
 
-        // Save TMCS ID to all storage directories
+        // Log storage dirs.
         for (Iterator<Storage.StorageDirectory> it = storage.dirIterator(); it.hasNext();) {
             Storage.StorageDirectory sd = it.next();
             logger.info(sd);
-//            saveNimbleInfo(sd, n);
         }
     }
 
     /**
      * Test TMCS Nimble API
      */
+    public static void test_TMCS() throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException {
+        logger.info("Testing TMCS");
+        TMCS tmcs = TMCS.getInstance();
+        NimbleOp op;
+
+        tmcs.initialize("fsimage".getBytes());
+        tmcs.increment("tag_1".getBytes());
+        tmcs.increment("tag_2".getBytes());
+
+        op = tmcs.latest();
+        assert Arrays.equals(op.tag, "tag_2".getBytes());
+        assert op.counter == 2;
+        logger.info("Successfully tested TMCS");
+    }
+
+    /**
+     * Test TMCS Nimble API
+     */
     public static void test_workflow(NimbleAPI n) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException {
+        logger.info("Testing NimbleAPI");
         NimbleServiceID id = NimbleUtils.loadAndValidateNimbleInfo(n);
-        logger.info(id);
+        assert id.handle != null;
+
         // Step 0: Sanity checks
 //        test_verify_1(n);
 //        test_verify_2(n);
 
         // Step 1: NewCounter Request
-        byte[]   handle = NimbleUtils.getNonce();
-        byte[]   tag    = "some-tag-value".getBytes();
         NimbleOp op;
-
-        op = n.newCounter(id, tag);
+        op = n.newCounter(id, "some-tag-value".getBytes());
         logger.info("NewCounter (verify): " + op.verify());
 
         // Step 2: Read Latest w/ Nonce
@@ -83,6 +100,7 @@ public class NimbleTester {
         assert op.tag == "tag_2".getBytes();
         assert op.counter == 2;
         logger.info("Verify readLatest: " + op.verify());
+        logger.info("Successfully tested NimbleAPI");
     }
 
    /**
