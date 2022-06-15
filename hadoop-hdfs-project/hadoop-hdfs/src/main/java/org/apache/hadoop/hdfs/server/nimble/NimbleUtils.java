@@ -21,7 +21,7 @@ import java.util.Iterator;
 import java.util.Properties;
 
 /* Store & load configuration */
-class NimbleUtils {
+public class NimbleUtils {
     static Logger logger = Logger.getLogger(NimbleUtils.class);
 
     public static final String NIMBLEURI_KEY            = "fs.nimbleURI";
@@ -144,21 +144,19 @@ class NimbleUtils {
         Storage.writeProperties(nimble_info, props);
     }
 
-    public void saveFSImageInfo(File fsimage) throws IOException, NoSuchAlgorithmException {
-        // Ensure handle exists -- goes elsewhere (when formatting filesystem)
-//        try {
-//            NimbleConf.initialize();
-//            NimbleAPI.newCounter(NimbleConf.handle, "initialize".getBytes(StandardCharsets.UTF_8));
-//        } catch (Exception e) {
-//            // ignore NimbleError in case of conflict
-//        }
-
+    /**
+     * Called from FSImageSaver to save "fsimage_###.nimble"
+     */
+    public static void saveFSImageInfo(File fsimage) throws IOException, NoSuchAlgorithmException {
         // Prepare data
         Properties props = new Properties();
+        TMCS tmcs = TMCS.getInstance();
         byte[] digest = NimbleUtils.checksum(fsimage);
-        props.setProperty("sha256sum", URLEncode(digest));
-        props.setProperty("counter", "TODO: insert expected value");
-        props.setProperty("tag", "TODO: sk<sha256sum|counter>");
+        byte[] tag = getTagForFSImage(digest, tmcs.expectedCounter());
+
+        props.setProperty("sha256sum-fsimage", URLEncode(digest));
+        props.setProperty("counter", String.valueOf(tmcs.expectedCounter()));
+        props.setProperty("tag", URLEncode(tag));
         // add status tag? (to simplify recovery logic during failures)
 
         // Store data
@@ -167,6 +165,73 @@ class NimbleUtils {
         logger.info(props);
     }
 
+    public static class NimbleFSImageInfo {
+        public int counter;
+        public byte[] digest;
+        public byte [] tag;
+
+        public NimbleFSImageInfo(int counter, byte[] digest, byte[] tag) {
+            this.counter = counter;
+            this.digest = digest;
+            this.tag = tag;
+        }
+    }
+
+    /**
+     * Called from FSImageSaver to load "fsimage_###.nimble"
+     */
+    public static NimbleFSImageInfo getFSImageInfo(File fsimage) throws IOException {
+        File nimble_info = new File(fsimage.getParentFile(), fsimage.getName() + NIMBLE_FSIMAGE_EXTENSION);
+        Properties props = Storage.readPropertiesFile(nimble_info);
+        byte[] digest_curr = NimbleUtils.checksum(fsimage);
+
+        byte[] digest_saved = URLDecode(props.getProperty("sha256sum-fsimage", ""));
+        int counter_saved = Integer.parseInt(props.getProperty("counter", "-2"));
+        byte[] tag_saved = URLDecode(props.getProperty("tag", ""));
+
+        // Sanity checks
+        if (!Arrays.equals(digest_curr, digest_saved))
+            throw new NimbleError("Saved & current checksums do not match");
+
+        // TODO: Verify signature
+        byte[] tag_computed = getTagForFSImage(digest_curr, counter_saved);
+        if (!Arrays.equals(tag_saved, tag_computed))
+            throw new NimbleError("Saved & current tags do not match");
+
+        return new NimbleFSImageInfo(counter_saved, digest_saved, tag_saved);
+    }
+
+    public static void verifyFSImageInfo(File fsImage) throws IOException {
+        NimbleUtils.NimbleFSImageInfo info = NimbleUtils.getFSImageInfo(fsImage);
+        byte[] digest = checksum(fsImage);
+
+        if (!Arrays.equals(info.digest, digest))
+            throw new NimbleError("Image file " + fsImage +
+                    " is corrupt with SHA256 checksum of " + URLEncode(digest) +
+                    " but expecting " + URLEncode(info.digest));
+
+        // TODO: Verify signature
+        logger.info("FSImage verified!");
+    }
+
+    public static void renameFSImageInfo(File from, File to) throws IOException {
+        File fromNimble = new File(from.getParentFile(), from.getName()+NIMBLE_FSIMAGE_EXTENSION);
+        File toNimble = new File(to.getParentFile(), to.getName()+NIMBLE_FSIMAGE_EXTENSION);
+
+        boolean flag = fromNimble.renameTo(toNimble);
+        if (!flag) {
+            String m = "failed to rename file: " + fromNimble + " to " + toNimble;
+            throw new NimbleError(m);
+        }
+    }
+
+    public static byte[] getTagForFSImage(byte[] digest, int counter) throws IOException {
+        MessageDigest md = _checksum();
+        md.update(digest);
+        md.update(String.valueOf(counter).getBytes(StandardCharsets.UTF_8));
+        // TODO: Sign it! tag=sk<sha256sum|counter>
+        return md.digest();
+    }
 
     public static byte[] getNonce() {
         return RandomUtils.nextBytes(16);
@@ -180,13 +245,21 @@ class NimbleUtils {
         return BaseEncoding.base64Url().decode(value);
     }
 
-    public static byte[] checksum(byte[] value) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
+    private static MessageDigest _checksum() throws NimbleError {
+        try {
+            return MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new NimbleError("cannot compute SHA256");
+        }
+    }
+
+    public static byte[] checksum(byte[] value) throws NimbleError {
+        MessageDigest md = _checksum();
         return md.digest(value);
     }
 
-    public static byte[] checksum(File file) throws NoSuchAlgorithmException, IOException {
-        MessageDigest       md  = MessageDigest.getInstance("SHA-256");
+    public static byte[] checksum(File file) throws IOException {
+        MessageDigest       md  = _checksum();
         BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
 
         byte[] buffer = new byte[8192];

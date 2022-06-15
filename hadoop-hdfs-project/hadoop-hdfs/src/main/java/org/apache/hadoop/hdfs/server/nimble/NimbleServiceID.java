@@ -7,7 +7,7 @@ import java.security.spec.*;
 import java.util.Arrays;
 
 /* NimbleServiceID */
-final class NimbleServiceID {
+public final class NimbleServiceID {
     public byte[] identity;
     public byte[] publicKey;
     public byte[] handle;

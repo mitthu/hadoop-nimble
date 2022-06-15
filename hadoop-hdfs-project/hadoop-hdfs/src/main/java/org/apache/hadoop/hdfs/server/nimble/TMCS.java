@@ -1,10 +1,18 @@
 package org.apache.hadoop.hdfs.server.nimble;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.server.common.Storage;
+import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
 
 public class TMCS implements Closeable {
     static Logger logger = Logger.getLogger(TMCS.class);
@@ -14,7 +22,7 @@ public class TMCS implements Closeable {
     private NimbleAPI api;
     private int counter = -1;
 
-    private TMCS() throws NimbleError {
+    private void _TMCS() throws NimbleError {
         api = new NimbleAPI(new Configuration());
         try {
             id = NimbleUtils.loadAndValidateNimbleInfo(api);
@@ -37,17 +45,49 @@ public class TMCS implements Closeable {
         }
     }
 
-    public synchronized static TMCS getInstance() throws NimbleError {
-        if (instance == null) {
-            instance = new TMCS();
-        }
-        return instance;
+    private TMCS() { }
+
+    /**
+     * Only to be used while formatting
+     */
+    private TMCS(Configuration conf) {
+        this.api = new NimbleAPI(new Configuration());
     }
 
     @Override
     public synchronized void close() throws IOException {
         api.close();
         api = null; // fail just in case
+    }
+
+    private static TMCS _getInstance() throws NimbleError {
+        if (instance == null) {
+            instance = new TMCS();
+            instance._TMCS(); // default constructor
+        }
+        return instance;
+    }
+    public synchronized static TMCS getInstance() throws NimbleError {
+        return _getInstance();
+    }
+
+    /**
+     * Refresh service identity and create new ledger handle.
+     */
+    public synchronized static void format(Configuration conf) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException {
+        if (instance == null) {
+            instance = new TMCS(conf);
+        }
+
+        instance.id = instance.api.getServiceID();
+        instance.id.handle = NimbleUtils.getNonce();
+        // newCounter whose tag=[hostname]
+        instance._initialize(InetAddress.getLocalHost().getHostName().getBytes(StandardCharsets.UTF_8));
+        logger.info("Formatted TMCS: " + instance.id);
+    }
+
+    public synchronized void save(Storage.StorageDirectory sd) throws IOException {
+        NimbleUtils.saveNimbleInfo(sd, id);
     }
 
     // "counter" may be -1 due to temporary connection failure.
@@ -63,10 +103,14 @@ public class TMCS implements Closeable {
         counter = op.counter;
     }
 
-    public synchronized void initialize(byte[] tag) throws IOException {
+    public void _initialize(byte[] tag) throws IOException {
         NimbleOp op = api.newCounter(id, tag);
         counter = 0;
         op.verify(); // TODO: throw exception on failure
+    }
+
+    public synchronized void initialize(byte[] tag) throws IOException {
+        _initialize(tag);
     }
 
     public synchronized void increment(byte[] tag) throws IOException {
@@ -76,6 +120,8 @@ public class TMCS implements Closeable {
         NimbleOp op = api.incrementCounter(id, tag, counter+1);
         counter++;
         op.verify(); // TODO: throw exception on failure
+        logger.info(String.format("increment: newCounter=%d tag=%s",
+                counter, NimbleUtils.URLEncode(tag)));
     }
 
     private NimbleOpReadLatest _latest() throws IOException {
@@ -91,5 +137,11 @@ public class TMCS implements Closeable {
         NimbleOpReadLatest op = _latest();
         assert counter == op.counter;
         return op;
+    }
+
+    public synchronized int expectedCounter() throws IOException {
+        if (counter == -1)
+            throw new NimbleError("not initialized");
+        return counter+1;
     }
 }

@@ -3,7 +3,7 @@ package org.apache.hadoop.hdfs.server.nimble;
 import java.util.Map;
 
 /* Captures response from ReadLatest */
-class NimbleOpReadLatest extends NimbleOp {
+public class NimbleOpReadLatest extends NimbleOp {
     // From Request
     public byte[] nonce;
 

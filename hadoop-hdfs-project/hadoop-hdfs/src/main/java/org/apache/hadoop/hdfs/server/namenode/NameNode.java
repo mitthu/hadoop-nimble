@@ -17,12 +17,18 @@
  */
 package org.apache.hadoop.hdfs.server.namenode;
 
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
+import org.apache.hadoop.hdfs.server.nimble.TMCS;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Joiner;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.collect.Lists;
 import org.apache.hadoop.thirdparty.com.google.common.collect.Sets;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
 import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -1249,7 +1255,7 @@ public class NameNode extends ReconfigurableBase implements
     }
 
     LOG.info("Formatting using clusterid: {}", clusterId);
-    
+
     FSImage fsImage = new FSImage(conf, nameDirsToFormat, editDirsToFormat);
     FSNamesystem fsn = null;
     try {
@@ -1275,10 +1281,14 @@ public class NameNode extends ReconfigurableBase implements
         return true; // aborted
       }
 
+      TMCS.format(conf); // for Nimble
       fsImage.format(fsn, clusterId, force);
     } catch (IOException ioe) {
       LOG.warn("Encountered exception during format", ioe);
       throw ioe;
+    } catch (Exception e) {
+      e.printStackTrace();
+      LOG.error("nimble formatting failed: " + e);
     } finally {
       if (fsImage != null) {
         fsImage.close();

@@ -50,6 +50,7 @@ import org.apache.hadoop.hdfs.server.common.IncorrectVersionException;
 import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.common.StorageErrorReporter;
 import org.apache.hadoop.hdfs.server.common.Util;
+import org.apache.hadoop.hdfs.server.nimble.TMCS;
 import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
 import org.apache.hadoop.hdfs.util.PersistentLongFile;
 import org.apache.hadoop.io.IOUtils;
@@ -591,6 +592,7 @@ public class NNStorage extends Storage implements Closeable,
     sd.clearDirectory(); // create currrent dir
     writeProperties(sd);
     writeTransactionIdFile(sd, 0);
+    TMCS.getInstance().save(sd);
 
     LOG.info("Storage directory {} has been successfully formatted.",
         sd.getRoot());

@@ -54,6 +54,7 @@ public class NimbleTester {
     public static void test_TMCS() throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException {
         logger.info("Testing TMCS");
         TMCS tmcs = TMCS.getInstance();
+        tmcs.format(new Configuration());
         NimbleOp op;
 
         tmcs.initialize("fsimage".getBytes());
@@ -63,6 +64,7 @@ public class NimbleTester {
         op = tmcs.latest();
         assert Arrays.equals(op.tag, "tag_2".getBytes());
         assert op.counter == 2;
+
         logger.info("Successfully tested TMCS");
     }
 

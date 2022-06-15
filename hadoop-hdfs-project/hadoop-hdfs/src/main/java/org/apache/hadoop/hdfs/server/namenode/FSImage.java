@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,6 +38,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.hadoop.hdfs.server.nimble.NimbleError;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
+import org.apache.hadoop.hdfs.server.nimble.TMCS;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,6 +192,7 @@ public class FSImage implements Closeable {
     
     storage.format(ns);
     editLog.formatNonFileJournals(ns, force);
+    // Ensure NimbleServiceID is saved
     saveFSImageInAllDirs(fsn, 0);
   }
   
@@ -974,6 +979,9 @@ public class FSImage implements Closeable {
           " but expecting " + expectedMd5);
     }
 
+    // Verify NimbleFSImageInfo
+    NimbleUtils.verifyFSImageInfo(curFile);
+
     long txId = loader.getLoadedImageTxId();
     LOG.info("Loaded image for txid " + txId + " from " + curFile);
     lastAppliedTxId = txId;
@@ -1003,12 +1011,13 @@ public class FSImage implements Closeable {
     MD5FileUtils.saveMD5File(dstFile, saver.getSavedDigest());
     storage.setMostRecentCheckpointInfo(txid, Time.now());
 
-//    // Save nimble metadata
-//    try (NimbleAPI n = new NimbleAPI(conf)) {
-//      NimbleUtils.saveNimbleInfo(newFile)
-//    } catch (Exception e) {
-//      e.printStackTrace();
-//    }
+    // Save nimble metadata
+    try {
+      NimbleUtils.saveFSImageInfo(newFile);
+    } catch (NoSuchAlgorithmException e) {
+      LOG.error("nimble failure: " + e);
+      e.printStackTrace();
+    }
   }
 
   /**
@@ -1257,7 +1266,18 @@ public class FSImage implements Closeable {
       }
   
       renameCheckpoint(txid, NameNodeFile.IMAGE_NEW, nnf, false);
-  
+
+      // Increment TMCS (for new FSImage)
+      TMCS tmcs = TMCS.getInstance();
+      NimbleUtils.NimbleFSImageInfo info =
+              NimbleUtils.getFSImageInfo(this.getStorage().getFsImageName(txid));
+      if (tmcs.expectedCounter() != info.counter) {
+        String m = String.format("counters do not match for FSImage, expected=%d got=%d",
+                tmcs.expectedCounter(), info.counter);
+        throw new NimbleError(m);
+      }
+      tmcs.increment(info.tag);
+
       // Since we now have a new checkpoint, we can clean up some
       // old edit logs and checkpoints.
       // Do not purge anything if we just wrote a corrupted FsImage.
@@ -1265,6 +1285,13 @@ public class FSImage implements Closeable {
         purgeOldStorage(nnf);
         archivalManager.purgeCheckpoints(NameNodeFile.IMAGE_NEW);
       }
+    } catch (Exception e) {
+      e.printStackTrace();
+      LOG.error("error while saving FSImage: " + e);
+      if (e instanceof IOException) {
+        throw (IOException) e;
+      }
+      return;
     } finally {
       // Notify any threads waiting on the checkpoint to be canceled
       // that it is complete.
@@ -1368,6 +1395,7 @@ public class FSImage implements Closeable {
     if (renameMD5) {
       MD5FileUtils.renameMD5File(fromFile, toFile);
     }
+    NimbleUtils.renameFSImageInfo(fromFile, toFile);
   }
 
   CheckpointSignature rollEditLog(int layoutVersion) throws IOException {
