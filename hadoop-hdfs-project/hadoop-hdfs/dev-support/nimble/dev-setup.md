@@ -30,6 +30,52 @@ We want to compile the entire Hadoop distribution and deploy it inside container
 mvn package -Pdist -DskipTests -Dtar -Dmaven.javadoc.skip=true
 ```
 
+### Setup Local cluster
+
+```bash
+# Setup java
+sudo apt update
+sudo apt install -y bash-completion default-jre
+
+# Setup environment variables (for bash)
+export JAVA_HOME=/usr/lib/jvm/default-java
+export PATH=/opt/hadoop-3.3.3/bin:$PATH
+
+# (for fish)
+set -x JAVA_HOME /usr/lib/jvm/default-java
+set -x PATH /opt/hadoop-3.3.3/bin $PATH
+```
+
+Copy Hadoop installation:
+
+```bash
+sudo cp -ar ./hadoop-dist/target/hadoop-3.3.3 /opt/hadoop-3.3.3
+
+# Replace localhost with IP address. Then you can access hdfs namenode webUI from ip:9870.
+echo "\
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>
+<configuration>
+	<property>
+		<name>fs.defaultFS</name>
+		<value>hdfs://localhost:9000</value>
+	</property>
+</configuration>
+" >/opt/hadoop-3.3.3/etc/hadoop/core-site.xml
+```
+
+Start Hadoop:
+```bash
+# Format namenode
+hdfs namenode -format
+
+# Start
+hdfs --daemon start namenode
+hdfs --daemon start datanode
+
+# Logs are inside /opt/hadoop-3.3.3/logs
+```
+
 ### Setup Containers
 
 ```bash
