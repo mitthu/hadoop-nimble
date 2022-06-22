@@ -17,10 +17,9 @@
  */
 package org.apache.hadoop.hdfs.protocol;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -103,11 +102,16 @@ public class Block implements Writable, Comparable<Block> {
   private long blockId;
   private long numBytes;
   private long generationStamp;
+  private byte[] checksum;
 
   public Block() {this(0, 0, 0);}
 
   public Block(final long blkid, final long len, final long generationStamp) {
-    set(blkid, len, generationStamp);
+    set(blkid, len, generationStamp, null);
+  }
+
+  public Block(final long blkid, final long len, final long generationStamp, byte[] checksum) {
+    set(blkid, len, generationStamp, checksum);
   }
 
   public Block(final long blkid) {
@@ -115,7 +119,7 @@ public class Block implements Writable, Comparable<Block> {
   }
 
   public Block(Block blk) {
-    this(blk.blockId, blk.numBytes, blk.generationStamp);
+    this(blk.blockId, blk.numBytes, blk.generationStamp, blk.checksum);
   }
 
   /**
@@ -123,12 +127,42 @@ public class Block implements Writable, Comparable<Block> {
    */
   public Block(File f, long len, long genstamp) {
     this(filename2id(f.getName()), len, genstamp);
+    try {
+      this.checksum = computeChecksum(f);
+    } catch (IOException e) { }
   }
 
-  public void set(long blkid, long len, long genStamp) {
+  protected static MessageDigest _checksum() throws IOException {
+    try {
+      return MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException e) {
+      throw new IOException("cannot compute SHA256");
+    }
+  }
+
+  public static byte[] computeChecksum(File file) throws IOException {
+    MessageDigest md  = _checksum();
+    BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+
+    byte[] buffer = new byte[8192];
+    int count;
+    while ((count = bis.read(buffer)) > 0) {
+      md.update(buffer, 0, count);
+    }
+
+    return md.digest();
+  }
+
+  public void set(long blkid, long len, long genStamp, byte[] checksum) {
     this.blockId = blkid;
     this.numBytes = len;
     this.generationStamp = genStamp;
+    if (checksum != null)
+      this.checksum = checksum.clone();
+  }
+
+  public void set(long blkid, long len, long genStamp) {
+    set(blkid, len, genStamp, null);
   }
 
   public long getBlockId() {
@@ -311,5 +345,13 @@ public class Block implements Writable, Comparable<Block> {
     } else {
       return a.blockId == b.blockId && a.generationStamp == b.generationStamp;
     }
+  }
+
+  public byte[] getChecksum() {
+    return checksum;
+  }
+
+  public void setChecksum(byte[] checksum) {
+    this.checksum = checksum;
   }
 }

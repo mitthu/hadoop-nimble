@@ -25,7 +25,7 @@ public class NimbleUtils {
     static Logger logger = Logger.getLogger(NimbleUtils.class);
 
     public static final String NIMBLEURI_KEY            = "fs.nimbleURI";
-    public static final String NIMBLEURI_DEFAULT        = "http://[::1]:8082/";
+    public static final String NIMBLEURI_DEFAULT        = "http://localhost:8082/";
     public static final String NIMBLE_INFO              = "NIMBLE";
     public static final String NIMBLE_FSIMAGE_EXTENSION = ".nimble";
     public static final boolean READABLE_LOG_OPERATIONS = true;

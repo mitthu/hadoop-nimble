@@ -1,7 +1,7 @@
 #!/bin/bash
 VERSION=3.3.3
 JARFILE=hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-${VERSION}.jar
-TARGET=opt/hadoop-${VERSION}/share/hadoop/hdfs/hadoop-hdfs-${VERSION}.jar
+TARGET=opt/hadoop-${VERSION}/share/hadoop/hdfs/
 
 function containers() {
   # Push files to lxc containers
@@ -25,6 +25,7 @@ function containers() {
 function standalone() {
   # Update JAR
   cp $JARFILE /${TARGET}
+  cp hadoop-hdfs-project/hadoop-hdfs-client/target/hadoop-hdfs-client-${VERSION}.jar /${TARGET}
 
   # Stop services
   hdfs --daemon stop namenode

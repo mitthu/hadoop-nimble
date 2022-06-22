@@ -76,6 +76,12 @@ hdfs --daemon start datanode
 # Logs are inside /opt/hadoop-3.3.3/logs
 ```
 
+Recompiling specific parts:
+```bash
+# hadoop-hdfs-client
+cp hadoop-hdfs-project/hadoop-hdfs-native-client/target/hadoop-hdfs-native-client-3.3.3.jar /opt/hadoop-3.3.3/share/hadoop/hdfs/hadoop-hdfs-client-3.3.3.jar
+```
+
 ### Setup Containers
 
 ```bash
@@ -102,6 +108,10 @@ echo "\
 	<property>
 		<name>fs.defaultFS</name>
 		<value>hdfs://namenode.lxd:9000</value>
+	</property>
+	<property>
+		<name>dfs.namenode.fs-limits.min-block-size</name>
+		<value>1</value>
 	</property>
 </configuration>
 " >/tmp/core-site.xml
@@ -164,6 +174,21 @@ lxc file push -r tmp/org namenode/root/
 lxc exec namenode -- bash
 export CLASSPATH=/root:/opt/hadoop-3.3.3/etc/hadoop:/opt/hadoop-3.3.3/share/hadoop/common/lib/*:/opt/hadoop-3.3.3/share/hadoop/common/*:/opt/hadoop-3.3.3/share/hadoop/hdfs:/opt/hadoop-3.3.3/share/hadoop/hdfs/lib/*:/opt/hadoop-3.3.3/share/hadoop/hdfs/*:/opt/hadoop-3.3.3/share/hadoop/mapreduce/*:/opt/hadoop-3.3.3/share/hadoop/yarn/lib/*:/opt/hadoop-3.3.3/share/hadoop/yarn/*
 java org/apache/hadoop/hdfs/Nimble
+```
+
+WebHDFS Commands:
+```bash
+USER=mitthu
+# Change perms
+curl -i -X PUT "http://localhost:9870/webhdfs/v1/?op=SETPERMISSION&permission=777&user.name=$USER"
+
+# Create file
+curl -i -X PUT -T /home/mitthu/repos/hadoop/README.txt "http://DESKTOP-ALEUKCG.localdomain:9864/webhdfs/v1/foo?op=CREATE&user.name=mitthu&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
+# "http://localhost:9864/webhdfs/v1/foo?op=CREATE&blocksize=5&permission=777&user.name=$USER"
+
+# Create dir
+curl -i -X PUT "http://localhost:9870/webhdfs/v1/thedir?op=MKDIRS&permission=777"
+curl -i -X PUT -T /home/mitthu/repos/hadoop/README.txt "http://DESKTOP-ALEUKCG.localdomain:9864/webhdfs/v1/thedir/foo?op=CREATE&user.name=mitthu&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
 ```
 
 ### References
