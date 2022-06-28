@@ -1,7 +1,7 @@
 package org.apache.hadoop.hdfs.server.nimble;
 
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp;
-import org.apache.hadoop.hdfs.server.namenode.FSEditLogOpCodes;
+import org.apache.hadoop.hdfs.server.namenode.NameNodeLayoutVersion;
 import org.apache.log4j.Logger;
 
 import java.io.*;
@@ -79,12 +79,17 @@ public class TMCSEditLog {
      * Record an operation
      */
     public synchronized void add(FSEditLogOp op) throws IOException {
-        out.write(op.opCode.getOpCode()); // OPCODE
-        op.writeFields(out); // Fields
-        num++;
-        logger.info("record: " + op);
-        if (num >= AGGREGATE_FREQUENCY) // OR a special op
-            finalizeBatch();
+        try {
+            out.write(op.opCode.getOpCode()); // OPCODE
+            op.writeFields(out, NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION); // Fields
+            num++;
+            logger.info("record: " + op);
+            if (num >= AGGREGATE_FREQUENCY) // OR a special op
+                finalizeBatch();
+        } catch (IOException e) {
+            logger.error(e);
+            throw e;
+        }
     }
 
     public synchronized void verifyState() throws IOException {
