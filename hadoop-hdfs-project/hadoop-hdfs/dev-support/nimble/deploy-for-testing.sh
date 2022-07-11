@@ -1,12 +1,13 @@
 #!/bin/bash
 VERSION=3.3.3
 JARFILE=hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-${VERSION}.jar
+JARFILE_CLIENT=hadoop-hdfs-project/hadoop-hdfs-client/target/hadoop-hdfs-client-${VERSION}.jar
 TARGET=opt/hadoop-${VERSION}/share/hadoop/hdfs/
 
 function containers() {
   # Push files to lxc containers
-  lxc file push $JARFILE namenode/${TARGET}
-  lxc file push $JARFILE datanode/${TARGET}
+  lxc file push $JARFILE ${JARFILE_CLIENT} namenode/${TARGET}
+  lxc file push $JARFILE ${JARFILE_CLIENT} datanode/${TARGET}
 
   # Stop services
   lxc exec namenode --env JAVA_HOME=/usr/lib/jvm/default-java -T -- /opt/hadoop-$VERSION/bin/hdfs --daemon stop namenode
@@ -24,8 +25,7 @@ function containers() {
 
 function standalone() {
   # Update JAR
-  cp $JARFILE /${TARGET}
-  cp hadoop-hdfs-project/hadoop-hdfs-client/target/hadoop-hdfs-client-${VERSION}.jar /${TARGET}
+  cp $JARFILE ${JARFILE_CLIENT} /${TARGET}
 
   # Stop services
   hdfs --daemon stop namenode
@@ -42,4 +42,16 @@ function standalone() {
 }
 
 # Run containers or standalone?
-`$1`
+case $1 in
+containers)
+  containers
+  ;;
+
+standalone)
+  standalone
+  ;;
+
+*)
+  containers
+  ;;
+esac
