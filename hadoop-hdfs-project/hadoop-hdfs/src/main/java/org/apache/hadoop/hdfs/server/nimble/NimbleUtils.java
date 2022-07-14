@@ -239,10 +239,14 @@ public class NimbleUtils {
     }
 
     public static String URLEncode(byte[] value) {
+        if (value == null)
+            return "null";
         return BaseEncoding.base64Url().omitPadding().encode(value);
     }
 
     public static byte[] URLDecode(String value) {
+        if (value.equals("null") || value.equals(""))
+            return null;
         return BaseEncoding.base64Url().decode(value);
     }
 

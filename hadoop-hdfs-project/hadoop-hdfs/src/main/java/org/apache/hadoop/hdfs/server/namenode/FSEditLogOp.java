@@ -115,6 +115,7 @@ import org.apache.hadoop.hdfs.protocol.proto.EditLogProtos.XAttrEditLogProto;
 import org.apache.hadoop.hdfs.protocolPB.PBHelperClient;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.hdfs.server.common.HdfsServerConstants;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.hdfs.util.XMLUtils;
 import org.apache.hadoop.hdfs.util.XMLUtils.InvalidXmlException;
 import org.apache.hadoop.hdfs.util.XMLUtils.Stanza;
@@ -1038,8 +1039,12 @@ public abstract class FSEditLogOp {
           .append(path)
           .append(", penultimateBlock=")
           .append(penultimateBlock == null ? "NULL" : penultimateBlock)
+          .append(", checksum=")
+          .append(penultimateBlock == null ? "NULL" : NimbleUtils.URLEncode(penultimateBlock.getChecksum()))
           .append(", lastBlock=")
-          .append(lastBlock);
+          .append(lastBlock)
+          .append(", checksum=")
+          .append(NimbleUtils.URLEncode(lastBlock.getChecksum()));
       appendRpcIdsToString(sb, rpcClientId, rpcCallId);
       sb.append("]");
       return sb.toString();

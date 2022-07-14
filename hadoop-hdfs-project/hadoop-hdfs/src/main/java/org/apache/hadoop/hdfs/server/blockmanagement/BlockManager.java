@@ -2967,6 +2967,7 @@ public class BlockManager implements BlockStatsMXBean {
       final DatanodeStorageInfo storageInfo,
       final BlockListAsLongs report) throws IOException {
     if (report == null) return;
+
     assert (namesystem.hasWriteLock());
     assert (storageInfo.getBlockReportCount() == 0);
 
