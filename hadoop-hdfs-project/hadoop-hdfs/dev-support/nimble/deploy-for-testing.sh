@@ -2,12 +2,16 @@
 VERSION=3.3.3
 JARFILE=hadoop-hdfs-project/hadoop-hdfs/target/hadoop-hdfs-${VERSION}.jar
 JARFILE_CLIENT=hadoop-hdfs-project/hadoop-hdfs-client/target/hadoop-hdfs-client-${VERSION}.jar
+JARFILE_NATIVE_CLIENT=hadoop-hdfs-project/hadoop-hdfs-native-client/target/hadoop-hdfs-native-client-${VERSION}.jar
+JARFILE_HTTPFS=hadoop-hdfs-project/hadoop-hdfs-httpfs/target/hadoop-hdfs-httpfs-${VERSION}.jar
+JARFILE_NFS=hadoop-hdfs-project/hadoop-hdfs-nfs/target/hadoop-hdfs-nfs-${VERSION}.jar
+JARFILE_RBF=hadoop-hdfs-project/hadoop-hdfs-rbf/target/hadoop-hdfs-rbf-${VERSION}.jar
 TARGET=opt/hadoop-${VERSION}/share/hadoop/hdfs/
 
 function containers() {
   # Push files to lxc containers
-  lxc file push $JARFILE ${JARFILE_CLIENT} namenode/${TARGET}
-  lxc file push $JARFILE ${JARFILE_CLIENT} datanode/${TARGET}
+  lxc file push $JARFILE ${JARFILE_CLIENT} ${JARFILE_NATIVE_CLIENT} ${JARFILE_HTTPFS} ${JARFILE_NFS} ${JARFILE_RBF} namenode/${TARGET}
+  lxc file push $JARFILE ${JARFILE_CLIENT} ${JARFILE_NATIVE_CLIENT} ${JARFILE_HTTPFS} ${JARFILE_NFS} ${JARFILE_RBF} datanode/${TARGET}
 
   # Stop services
   lxc exec namenode --env JAVA_HOME=/usr/lib/jvm/default-java -T -- /opt/hadoop-$VERSION/bin/hdfs --daemon stop namenode
@@ -25,7 +29,7 @@ function containers() {
 
 function standalone() {
   # Update JAR
-  cp $JARFILE ${JARFILE_CLIENT} /${TARGET}
+  cp $JARFILE ${JARFILE_CLIENT} ${JARFILE_NATIVE_CLIENT} ${JARFILE_HTTPFS} ${JARFILE_NFS} ${JARFILE_RBF} /${TARGET}
 
   # Stop services
   hdfs --daemon stop namenode
