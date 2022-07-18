@@ -297,6 +297,7 @@ abstract public class ReplicaInfo extends Block
         + "\n  getNumBytes()     = " + getNumBytes()
         + "\n  getBytesOnDisk()  = " + getBytesOnDisk()
         + "\n  getVisibleLength()= " + getVisibleLength()
+        + "\n  getChecksum()     = " + getChecksumAsString()
         + "\n  getVolume()       = " + getVolume()
         + "\n  getBlockURI()     = " + getBlockURI();
   }

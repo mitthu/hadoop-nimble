@@ -1839,7 +1839,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       assert newReplicaInfo.getState() == ReplicaState.FINALIZED
           : "Replica should be finalized";
 
-      LOG.info("NIMBLE: finalize replica: " + bpid);
+      LOG.info("NIMBLE: finalize replica: " + newReplicaInfo);
       volumeMap.add(bpid, newReplicaInfo);
       return newReplicaInfo;
     }
@@ -2062,6 +2062,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     r = volumeMap.get(bpid, blockId);
     if (r != null) {
       if (r.blockDataExists()) {
+        LOG.info("In memory replica: " + r);
         return r;
       }
       // if file is not null, but doesn't exist - possibly disk failed

@@ -962,6 +962,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
       long bytesReserved) throws IOException {
     releaseReservedSpace(bytesReserved);
     File dest = getBlockPoolSlice(bpid).addFinalizedBlock(b, replicaInfo);
+    replicaInfo.setChecksum(dest); // for Nimble
     final byte[] checksum;
     // copy the last partial checksum if the replica is originally
     // in finalized or rbw state.

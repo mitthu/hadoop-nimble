@@ -212,11 +212,17 @@ public class Block implements Writable, Comparable<Block> {
    * @return the string representation of the block
    */
   public static String toString(final Block b) {
-    return new StringBuilder(BLOCK_FILE_PREFIX)
+    StringBuilder sb = new StringBuilder(BLOCK_FILE_PREFIX)
         .append(b.blockId)
         .append('_')
-        .append(b.generationStamp)
-        .toString();
+        .append(b.generationStamp);
+
+    // Add checksum
+    byte[] ck = b.getChecksum();
+    if (ck != null)
+      sb.append("--").append(b.getChecksumAsString());
+
+    return sb.toString();
   }
 
   /**
@@ -236,21 +242,25 @@ public class Block implements Writable, Comparable<Block> {
     // Print stacktrace
     String trace = "";
     for(StackTraceElement stackTraceElement : Thread.currentThread().getStackTrace()) {
-      trace = trace + System.lineSeparator() + "\t" + stackTraceElement.toString();
+      String elm = stackTraceElement.toString();
+      // No stack track in client
+      if (elm.startsWith("org.apache.hadoop.hdfs.server.datanode.web.webhdfs."))
+        return toString() + " (over webhdfs)";
+      trace = trace + System.lineSeparator() + "\t" + elm;
     }
 
     // Generate the name
-    String ck = "";
-    if (checksum != null)
-      ck = "--" + BaseEncoding.base64Url().omitPadding().encode(this.checksum);
-    return Block.toString(this) + ck + "\n\t" + trace;
+    //return Block.toString(this) + "--" + getChecksumAsString() + "\n\t" + trace;
+    return Block.toString(this) + "\n\t" + trace;
   }
 
   public void appendStringTo(StringBuilder sb) {
     sb.append(BLOCK_FILE_PREFIX)
       .append(blockId)
       .append('_')
-      .append(getGenerationStamp());
+      .append(getGenerationStamp())
+      // Add checksum
+      .append("--").append(getChecksumAsString());
   }
 
   /////////////////////////////////////
@@ -366,6 +376,12 @@ public class Block implements Writable, Comparable<Block> {
 
   public byte[] getChecksum() {
     return (checksum != null) ? checksum.clone() : null;
+  }
+
+  public String getChecksumAsString() {
+    return (checksum != null) ?
+        BaseEncoding.base64Url().omitPadding().encode(checksum) :
+        "nochecksum";
   }
 
   public void setChecksum(byte[] checksum) {
