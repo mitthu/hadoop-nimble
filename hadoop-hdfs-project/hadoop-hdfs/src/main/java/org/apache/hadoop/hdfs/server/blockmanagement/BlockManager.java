@@ -4294,10 +4294,12 @@ public class BlockManager implements BlockStatsMXBean {
         deleted++;
         break;
       case RECEIVED_BLOCK:
+        LOG.info("Received block: " + rdbi.getBlock() + " hash=" + rdbi.getBlock().getChecksumAsString());
         addBlock(storageInfo, rdbi.getBlock(), rdbi.getDelHints());
         received++;
         break;
       case RECEIVING_BLOCK:
+        LOG.info("Receiving block: " + rdbi.getBlock() + " hash=" + rdbi.getBlock().getChecksumAsString());
         receiving++;
         processAndHandleReportedBlock(storageInfo, rdbi.getBlock(),
                                       ReplicaState.RBW, null);

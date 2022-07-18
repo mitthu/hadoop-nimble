@@ -731,6 +731,11 @@ public class PBHelper {
     if (receivedDeletedBlockInfo.getDelHints() != null) {
       builder.setDeleteHint(receivedDeletedBlockInfo.getDelHints());
     }
+
+    if (receivedDeletedBlockInfo.getChecksum() != null) {
+      builder.setChecksum(ByteString.copyFrom(receivedDeletedBlockInfo.getChecksum()));
+    }
+
     return builder.setBlock(
         PBHelperClient.convert(receivedDeletedBlockInfo.getBlock())).build();
   }
@@ -749,8 +754,10 @@ public class PBHelper {
       status = BlockStatus.DELETED_BLOCK;
       break;
     }
+    Block b = PBHelperClient.convert(proto.getBlock());
+    b.setChecksum(proto.getChecksum().toByteArray());
     return new ReceivedDeletedBlockInfo(
-        PBHelperClient.convert(proto.getBlock()),
+        b,
         status,
         proto.hasDeleteHint() ? proto.getDeleteHint() : null);
   }

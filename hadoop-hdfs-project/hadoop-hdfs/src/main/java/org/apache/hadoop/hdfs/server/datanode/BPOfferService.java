@@ -304,6 +304,17 @@ class BPOfferService {
    */
   void notifyNamenodeReceivedBlock(ExtendedBlock block, String delHint,
       String storageUuid, boolean isOnTransientStorage) {
+    try {
+      // Get block with checksum (from im-memory map)
+      // TODO: Set in callers?
+      //LOG.info("notify NN: received block: " + block);
+      Block b = getDataNode().getFSDataset().getStoredBlock(block.getBlockPoolId(), block.getBlockId());
+      block = new ExtendedBlock(block.getBlockPoolId(), b);
+      //LOG.info("notify NN: received block (w/ hash): " + block);
+    } catch (IOException ignored) {
+      LOG.error("Missing checksum for block: " + block);
+    }
+
     notifyNamenodeBlock(block, BlockStatus.RECEIVED_BLOCK, delHint,
         storageUuid, isOnTransientStorage);
   }

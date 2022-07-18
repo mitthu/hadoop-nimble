@@ -197,7 +197,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       if (r == null) {
         return null;
       }
-      return new Block(blkid, r.getBytesOnDisk(), r.getGenerationStamp());
+      return new Block(blkid, r.getBytesOnDisk(), r.getGenerationStamp(), r.getChecksum());
     }
   }
 

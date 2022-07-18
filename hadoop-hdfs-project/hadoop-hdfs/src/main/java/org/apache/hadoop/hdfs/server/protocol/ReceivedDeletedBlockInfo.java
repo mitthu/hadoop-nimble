@@ -26,7 +26,8 @@ import org.apache.hadoop.hdfs.protocol.Block;
 public class ReceivedDeletedBlockInfo {
   Block block;
   BlockStatus status;
-  String delHints;
+  byte[] checksum;
+  String      delHints;
 
   public enum BlockStatus {
     RECEIVING_BLOCK(1),
@@ -59,6 +60,7 @@ public class ReceivedDeletedBlockInfo {
       Block blk, BlockStatus status, String delHints) {
     this.block = blk;
     this.status = status;
+    this.checksum = (blk != null) ? blk.getChecksum() : null;
     this.delHints = delHints;
   }
 
@@ -68,6 +70,14 @@ public class ReceivedDeletedBlockInfo {
 
   public void setBlock(Block blk) {
     this.block = blk;
+  }
+
+  public byte[] getChecksum() {
+    return this.checksum.clone();
+  }
+
+  public void setChecksum(byte[] checksum) {
+    this.checksum = checksum;
   }
 
   public String getDelHints() {

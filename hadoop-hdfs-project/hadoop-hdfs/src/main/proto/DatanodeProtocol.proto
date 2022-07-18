@@ -307,6 +307,7 @@ message ReceivedDeletedBlockInfoProto {
 
   required BlockProto block = 1;
   required BlockStatus status = 3;
+  optional bytes checksum = 4;
   optional string deleteHint = 2;
 }
 
