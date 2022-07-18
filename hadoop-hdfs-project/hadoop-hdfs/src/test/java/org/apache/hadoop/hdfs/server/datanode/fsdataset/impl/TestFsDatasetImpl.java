@@ -645,14 +645,14 @@ public class TestFsDatasetImpl {
     File f1 = new File("d1/block");
     File f2 = new File("d2/block");
 
-    ReplicaInfo replicaOlder = new FinalizedReplica(1,1,1,fsv1,f1);
-    ReplicaInfo replica = new FinalizedReplica(1,2,2,fsv1,f1);
-    ReplicaInfo replicaSame = new FinalizedReplica(1,2,2,fsv1,f1);
-    ReplicaInfo replicaNewer = new FinalizedReplica(1,3,3,fsv1,f1);
+    ReplicaInfo replicaOlder = new FinalizedReplica(1,1,1,null,fsv1,f1);
+    ReplicaInfo replica = new FinalizedReplica(1,2,2,null,fsv1,f1);
+    ReplicaInfo replicaSame = new FinalizedReplica(1,2,2,null,fsv1,f1);
+    ReplicaInfo replicaNewer = new FinalizedReplica(1,3,3,null,fsv1,f1);
 
-    ReplicaInfo replicaOtherOlder = new FinalizedReplica(1,1,1,fsv2,f2);
-    ReplicaInfo replicaOtherSame = new FinalizedReplica(1,2,2,fsv2,f2);
-    ReplicaInfo replicaOtherNewer = new FinalizedReplica(1,3,3,fsv2,f2);
+    ReplicaInfo replicaOtherOlder = new FinalizedReplica(1,1,1,null,fsv2,f2);
+    ReplicaInfo replicaOtherSame = new FinalizedReplica(1,2,2,null,fsv2,f2);
+    ReplicaInfo replicaOtherNewer = new FinalizedReplica(1,3,3,null,fsv2,f2);
 
     // equivalent path so don't remove either
     assertNull(BlockPoolSlice.selectReplicaToDelete(replicaSame, replica));
@@ -1211,7 +1211,7 @@ public class TestFsDatasetImpl {
     long fileLength = metaFile.length();
 
     ReplicaInfo replica = new FinalizedReplica(
-        blockID, 2, genStamp, fsv1, blockDir);
+        blockID, 2, genStamp, null, fsv1, blockDir);
 
     long metaLength = replica.getMetadataLength();
     assertEquals(fileLength, metaLength);

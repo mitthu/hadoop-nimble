@@ -1676,6 +1676,7 @@ public class DataNode extends ReconfigurableBase
 
     try {
       data.addBlockPool(nsInfo.getBlockPoolID(), getConf());
+      LOG.info("NIMBLE: added block pool");
     } catch (AddBlockPoolException e) {
       handleAddBlockPoolError(e);
     }

@@ -82,7 +82,8 @@ public abstract class ProvidedReplica extends ReplicaInfo {
   public ProvidedReplica(long blockId, URI fileURI, long fileOffset,
       long blockLen, long genStamp, PathHandle pathHandle, FsVolumeSpi volume,
       Configuration conf, FileSystem remoteFS) {
-    super(volume, blockId, blockLen, genStamp);
+    // TODO: Set checksum?
+    super(volume, blockId, blockLen, genStamp, null);
     this.fileURI = fileURI;
     this.fileOffset = fileOffset;
     this.conf = conf;
@@ -122,7 +123,8 @@ public abstract class ProvidedReplica extends ReplicaInfo {
   public ProvidedReplica(long blockId, Path pathPrefix, String pathSuffix,
       long fileOffset, long blockLen, long genStamp, PathHandle pathHandle,
       FsVolumeSpi volume, Configuration conf, FileSystem remoteFS) {
-    super(volume, blockId, blockLen, genStamp);
+    // TODO: Set checksum?
+    super(volume, blockId, blockLen, genStamp, null);
     this.fileURI = null;
     this.pathPrefix = pathPrefix;
     this.pathSuffix = pathSuffix;

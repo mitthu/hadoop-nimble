@@ -212,7 +212,9 @@ class BlockPoolSlice {
 
     if (addReplicaThreadPool == null) {
       // initialize add replica fork join pool
+      LOG.info("BEFORE initializeAddReplicaPool()");
       initializeAddReplicaPool(conf, (FsDatasetImpl) volume.getDataset());
+      LOG.info("AFTER initializeAddReplicaPool()");
     }
     // Make the dfs usage to be saved during shutdown.
     shutdownHook = new Runnable() {
@@ -429,6 +431,7 @@ class BlockPoolSlice {
         .setBlockId(blockId)
         .setLength(replicaInfo.getBytesOnDisk())
         .setGenerationStamp(replicaInfo.getGenerationStamp())
+        .setChecksum(Block.computeChecksum(blockFile))
         .setFsVolume(replicaState.getLazyPersistVolume())
         .setDirectoryToUse(targetBlockFile.getParentFile())
         .build();
@@ -601,6 +604,7 @@ class BlockPoolSlice {
       newReplica = new ReplicaBuilder(ReplicaState.FINALIZED)
           .setBlockId(blockId)
           .setLength(block.getNumBytes())
+          .setChecksum(block.getChecksum())
           .setGenerationStamp(genStamp)
           .setFsVolume(volume)
           .setDirectoryToUse(DatanodeUtil.idToBlockDir(finalizedDir, blockId))
@@ -718,7 +722,7 @@ class BlockPoolSlice {
       long genStamp = FsDatasetUtil.getGenerationStampFromFile(
           files, file, i);
       long blockId = Block.filename2id(file.getName());
-      Block block = new Block(blockId, file.length(), genStamp);
+      Block block = new Block(file, file.length(), genStamp);
       addReplicaToReplicasMap(block, volumeMap, lazyWriteReplicaMap,
           isFinalized);
     }

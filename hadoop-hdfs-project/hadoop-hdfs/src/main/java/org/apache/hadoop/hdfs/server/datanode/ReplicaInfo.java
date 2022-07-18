@@ -56,7 +56,7 @@ abstract public class ReplicaInfo extends Block
    */
   ReplicaInfo(Block block, FsVolumeSpi vol) {
     this(vol, block.getBlockId(), block.getNumBytes(),
-        block.getGenerationStamp());
+        block.getGenerationStamp(), block.getChecksum());
   }
 
   /**
@@ -66,8 +66,8 @@ abstract public class ReplicaInfo extends Block
   * @param len replica length
   * @param genStamp replica generation stamp
   */
-  ReplicaInfo(FsVolumeSpi vol, long blockId, long len, long genStamp) {
-    super(blockId, len, genStamp);
+  ReplicaInfo(FsVolumeSpi vol, long blockId, long len, long genStamp, byte[] checksum) {
+    super(blockId, len, genStamp, checksum);
     this.volume = vol;
   }
   

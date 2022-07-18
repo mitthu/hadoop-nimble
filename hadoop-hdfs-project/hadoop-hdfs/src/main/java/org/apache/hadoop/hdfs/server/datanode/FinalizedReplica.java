@@ -39,9 +39,9 @@ public class FinalizedReplica extends LocalReplica {
    * @param vol volume where replica is located
    * @param dir directory path where block and meta files are located
    */
-  public FinalizedReplica(long blockId, long len, long genStamp,
+  public FinalizedReplica(long blockId, long len, long genStamp, byte[] checksum,
       FsVolumeSpi vol, File dir) {
-    this(blockId, len, genStamp, vol, dir, null);
+    this(blockId, len, genStamp, checksum, vol, dir, null);
   }
 
   /**
@@ -53,9 +53,9 @@ public class FinalizedReplica extends LocalReplica {
    * @param dir directory path where block and meta files are located
    * @param checksum the last partial chunk checksum
    */
-  public FinalizedReplica(long blockId, long len, long genStamp,
+  public FinalizedReplica(long blockId, long len, long genStamp, byte[] blockChecksum,
       FsVolumeSpi vol, File dir, byte[] checksum) {
-    super(blockId, len, genStamp, vol, dir);
+    super(blockId, len, genStamp, blockChecksum, vol, dir);
     this.setLastPartialChunkChecksum(checksum);
   }
 

@@ -43,9 +43,9 @@ public class ReplicaWaitingToBeRecovered extends LocalReplica {
    * @param vol volume where replica is located
    * @param dir directory path where block and meta files are located
    */
-  public ReplicaWaitingToBeRecovered(long blockId, long len, long genStamp,
+  public ReplicaWaitingToBeRecovered(long blockId, long len, long genStamp, byte[] checksum,
       FsVolumeSpi vol, File dir) {
-    super(blockId, len, genStamp, vol, dir);
+    super(blockId, len, genStamp, checksum, vol, dir);
   }
   
   /**

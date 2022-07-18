@@ -30,6 +30,9 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableFactories;
 import org.apache.hadoop.io.WritableFactory;
+import org.apache.hadoop.thirdparty.com.google.common.io.BaseEncoding;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Block is a Hadoop FS primitive, identified by its block ID (a long). A
@@ -62,7 +65,7 @@ public class Block implements Writable, Comparable<Block> {
   public static final Pattern metaOrBlockFilePattern = Pattern
       .compile(BLOCK_FILE_PREFIX + "(-??\\d++)(_(\\d++)\\" + METADATA_EXTENSION
           + ")?$");
-
+  public static Logger LOG = LoggerFactory.getLogger(Block.class);
   public static boolean isBlockFilename(File f) {
     String name = f.getName();
     return blockFilePattern.matcher(name).matches();
@@ -126,10 +129,7 @@ public class Block implements Writable, Comparable<Block> {
    * Find the blockid from the given filename
    */
   public Block(File f, long len, long genstamp) {
-    this(filename2id(f.getName()), len, genstamp);
-    try {
-      this.checksum = computeChecksum(f);
-    } catch (IOException e) { }
+    this(filename2id(f.getName()), len, genstamp, computeChecksum(f));
   }
 
   protected static MessageDigest _checksum() throws IOException {
@@ -140,25 +140,28 @@ public class Block implements Writable, Comparable<Block> {
     }
   }
 
-  public static byte[] computeChecksum(File file) throws IOException {
-    MessageDigest md  = _checksum();
-    BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
+  public static byte[] computeChecksum(File file) {
+    try {
+      MessageDigest       md  = _checksum();
+      BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file));
 
-    byte[] buffer = new byte[8192];
-    int count;
-    while ((count = bis.read(buffer)) > 0) {
-      md.update(buffer, 0, count);
-    }
+      byte[] buffer = new byte[8192];
+      int    count;
+      while ((count = bis.read(buffer)) > 0) {
+        md.update(buffer, 0, count);
+      }
 
-    return md.digest();
+      return md.digest();
+    } catch (IOException ignored) {}
+    return null;
   }
 
   public void set(long blkid, long len, long genStamp, byte[] checksum) {
     this.blockId = blkid;
     this.numBytes = len;
     this.generationStamp = genStamp;
-    if (checksum != null)
-      this.checksum = checksum.clone();
+    this.checksum = (checksum != null) ? checksum.clone() : null;
+    LOG.info(this.toFullString());
   }
 
   public void set(long blkid, long len, long genStamp) {
@@ -227,6 +230,20 @@ public class Block implements Writable, Comparable<Block> {
   @Override
   public String toString() {
     return Block.toString(this);
+  }
+
+  public String toFullString() {
+    // Print stacktrace
+    String trace = "";
+    for(StackTraceElement stackTraceElement : Thread.currentThread().getStackTrace()) {
+      trace = trace + System.lineSeparator() + "\t" + stackTraceElement.toString();
+    }
+
+    // Generate the name
+    String ck = "";
+    if (checksum != null)
+      ck = "--" + BaseEncoding.base64Url().omitPadding().encode(this.checksum);
+    return Block.toString(this) + ck + "\n\t" + trace;
   }
 
   public void appendStringTo(StringBuilder sb) {
@@ -348,10 +365,14 @@ public class Block implements Writable, Comparable<Block> {
   }
 
   public byte[] getChecksum() {
-    return checksum;
+    return (checksum != null) ? checksum.clone() : null;
   }
 
   public void setChecksum(byte[] checksum) {
     this.checksum = checksum;
+  }
+
+  public void setChecksum(File f) {
+    this.checksum = computeChecksum(f);
   }
 }

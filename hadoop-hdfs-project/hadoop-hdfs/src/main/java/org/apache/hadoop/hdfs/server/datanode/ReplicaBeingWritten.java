@@ -65,9 +65,10 @@ public class ReplicaBeingWritten extends LocalReplicaInPipeline {
    * @param bytesToReserve disk space to reserve for this replica, based on
    *                       the estimated maximum block length.
    */
+  // TODO: Set checksum?
   public ReplicaBeingWritten(long blockId, long len, long genStamp,
       FsVolumeSpi vol, File dir, Thread writer, long bytesToReserve) {
-    super(blockId, len, genStamp, vol, dir, writer, bytesToReserve);
+    super(blockId, len, genStamp, null, vol, dir, writer, bytesToReserve);
   }
 
   /**

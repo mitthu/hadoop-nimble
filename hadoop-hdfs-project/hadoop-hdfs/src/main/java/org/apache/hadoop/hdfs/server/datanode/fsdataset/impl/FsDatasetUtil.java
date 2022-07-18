@@ -205,7 +205,7 @@ public class FsDatasetUtil {
     Preconditions.checkNotNull(dstMeta);
     Preconditions.checkNotNull(blockFile);
     // Create a dummy ReplicaInfo object pointing to the blockFile.
-    ReplicaInfo wrapper = new FinalizedReplica(0, 0, 0, null, null) {
+    ReplicaInfo wrapper = new FinalizedReplica(0, 0, 0, null, null, null) {
       @Override
       public URI getMetadataURI() {
         return srcMeta.toURI();

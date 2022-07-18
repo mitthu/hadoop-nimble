@@ -73,9 +73,10 @@ public class LocalReplicaInPipeline extends LocalReplica
    * @param bytesToReserve disk space to reserve for this replica, based on
    *                       the estimated maximum block length.
    */
+  // TODO: Set checksum?
   public LocalReplicaInPipeline(long blockId, long genStamp,
         FsVolumeSpi vol, File dir, long bytesToReserve) {
-    this(blockId, 0L, genStamp, vol, dir, Thread.currentThread(),
+    this(blockId, 0L, genStamp, null, vol, dir, Thread.currentThread(),
         bytesToReserve);
   }
 
@@ -88,7 +89,7 @@ public class LocalReplicaInPipeline extends LocalReplica
    */
   LocalReplicaInPipeline(Block block,
       FsVolumeSpi vol, File dir, Thread writer) {
-    this(block.getBlockId(), block.getNumBytes(), block.getGenerationStamp(),
+    this(block.getBlockId(), block.getNumBytes(), block.getGenerationStamp(), block.getChecksum(),
         vol, dir, writer, 0L);
   }
 
@@ -103,9 +104,9 @@ public class LocalReplicaInPipeline extends LocalReplica
    * @param bytesToReserve disk space to reserve for this replica, based on
    *                       the estimated maximum block length.
    */
-  LocalReplicaInPipeline(long blockId, long len, long genStamp,
+  LocalReplicaInPipeline(long blockId, long len, long genStamp, byte[] checksum,
       FsVolumeSpi vol, File dir, Thread writer, long bytesToReserve) {
-    super(blockId, len, genStamp, vol, dir);
+    super(blockId, len, genStamp, checksum, vol, dir);
     this.bytesAcked = len;
     this.bytesOnDisk = len;
     this.writer.set(writer);

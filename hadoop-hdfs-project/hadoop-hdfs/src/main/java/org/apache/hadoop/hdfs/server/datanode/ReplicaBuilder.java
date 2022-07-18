@@ -47,6 +47,7 @@ public class ReplicaBuilder {
   private long recoveryId;
   private Block block;
   private byte[] lastPartialChunkChecksum;
+  private byte[] checksum;
 
   private ReplicaInfo fromReplica;
 
@@ -89,6 +90,11 @@ public class ReplicaBuilder {
 
   public ReplicaBuilder setLength(long length) {
     this.length = length;
+    return this;
+  }
+
+  public ReplicaBuilder setChecksum(byte[] checksum) {
+    this.checksum = checksum;
     return this;
   }
 
@@ -245,7 +251,7 @@ public class ReplicaBuilder {
             writer);
       } else {
         if (length != -1) {
-          return new LocalReplicaInPipeline(blockId, length, genStamp,
+          return new LocalReplicaInPipeline(blockId, length, genStamp, checksum,
               volume, directoryUsed, writer, bytesToReserve);
         } else {
           return new LocalReplicaInPipeline(blockId, genStamp, volume,
@@ -267,7 +273,7 @@ public class ReplicaBuilder {
         return new FinalizedReplica(block, volume, directoryUsed,
             lastPartialChunkChecksum);
       } else {
-        return new FinalizedReplica(blockId, length, genStamp, volume,
+        return new FinalizedReplica(blockId, length, genStamp, checksum, volume,
             directoryUsed, lastPartialChunkChecksum);
       }
     }
@@ -285,7 +291,7 @@ public class ReplicaBuilder {
       if (null != block) {
         return new ReplicaWaitingToBeRecovered(block, volume, directoryUsed);
       } else {
-        return new ReplicaWaitingToBeRecovered(blockId, length, genStamp,
+        return new ReplicaWaitingToBeRecovered(blockId, length, genStamp, checksum,
             volume, directoryUsed);
       }
     }

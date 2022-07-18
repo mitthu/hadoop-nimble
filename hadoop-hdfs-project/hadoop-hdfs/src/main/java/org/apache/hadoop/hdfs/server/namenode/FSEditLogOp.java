@@ -1044,7 +1044,7 @@ public abstract class FSEditLogOp {
           .append(", lastBlock=")
           .append(lastBlock)
           .append(", checksum=")
-          .append(NimbleUtils.URLEncode(lastBlock.getChecksum()));
+          .append(lastBlock == null ? "NULL" : NimbleUtils.URLEncode(lastBlock.getChecksum()));
       appendRpcIdsToString(sb, rpcClientId, rpcCallId);
       sb.append("]");
       return sb.toString();

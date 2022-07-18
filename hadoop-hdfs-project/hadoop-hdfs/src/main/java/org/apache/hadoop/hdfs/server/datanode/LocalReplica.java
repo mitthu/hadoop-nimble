@@ -74,7 +74,7 @@ abstract public class LocalReplica extends ReplicaInfo {
    */
   LocalReplica(Block block, FsVolumeSpi vol, File dir) {
     this(block.getBlockId(), block.getNumBytes(),
-        block.getGenerationStamp(), vol, dir);
+        block.getGenerationStamp(), block.getChecksum(), vol, dir);
   }
 
   /**
@@ -85,9 +85,9 @@ abstract public class LocalReplica extends ReplicaInfo {
    * @param vol volume where replica is located
    * @param dir directory path where block and meta files are located
    */
-  LocalReplica(long blockId, long len, long genStamp,
+  LocalReplica(long blockId, long len, long genStamp, byte[] checksum,
       FsVolumeSpi vol, File dir) {
-    super(vol, blockId, len, genStamp);
+    super(vol, blockId, len, genStamp, checksum);
     setDirInternal(dir);
   }
 
