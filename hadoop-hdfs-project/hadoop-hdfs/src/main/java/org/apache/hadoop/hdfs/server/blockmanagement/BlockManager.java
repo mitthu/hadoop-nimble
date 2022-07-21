@@ -3124,7 +3124,7 @@ public class BlockManager implements BlockStatsMXBean {
 
     DatanodeDescriptor dn = storageInfo.getDatanodeDescriptor();
 
-    LOG.debug("Reported block {} on {} size {} replicaState = {}", block, dn,
+    LOG.info("Reported block {} on {} size {} replicaState = {}", block, dn,
         block.getNumBytes(), reportedState);
 
     if (shouldPostponeBlocksFromFuture && isGenStampInFuture(block)) {
@@ -3141,10 +3141,11 @@ public class BlockManager implements BlockStatsMXBean {
       toInvalidate.add(new Block(block));
       return null;
     }
+    storedBlock.setChecksum(block.getChecksum());
     BlockUCState ucState = storedBlock.getBlockUCState();
 
     // Block is on the NN
-    LOG.debug("In memory blockUCState = {}", ucState);
+    LOG.info("In memory blockUCState = {}", ucState);
 
     // Ignore replicas already scheduled to be removed from the DN
     if(invalidateBlocks.contains(dn, block)) {
