@@ -2145,13 +2145,22 @@ public class PBHelperClient {
 
   // Block
   public static BlockProto convert(Block b) {
-    return BlockProto.newBuilder().setBlockId(b.getBlockId())
-        .setGenStamp(b.getGenerationStamp()).setNumBytes(b.getNumBytes())
-        .build();
+    BlockProto.Builder builder = BlockProto.newBuilder().setBlockId(b.getBlockId())
+        .setGenStamp(b.getGenerationStamp()).setNumBytes(b.getNumBytes());
+
+    byte[] c = b.getChecksum();
+    builder.setChecksum(
+        ByteString.copyFrom((c != null) ? c : new byte[0])
+    );
+
+    return builder.build();
   }
 
   public static Block convert(BlockProto b) {
-    return new Block(b.getBlockId(), b.getNumBytes(), b.getGenStamp());
+    byte[] checksum = b.getChecksum().toByteArray();
+    if (checksum.length != Block.CHECKSUM_LENGTH)
+      checksum = null;
+    return new Block(b.getBlockId(), b.getNumBytes(), b.getGenStamp(), checksum);
   }
 
   public static BlockTypeProto convert(BlockType blockType) {

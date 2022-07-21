@@ -31,6 +31,7 @@ import java.util.Date;
 import java.util.Map;
 import java.util.TimeZone;
 
+import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.thirdparty.protobuf.ByteString;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -157,6 +158,7 @@ public final class PBImageXmlWriter {
   public static final String INODE_SECTION_BLOCK = "block";
   public static final String INODE_SECTION_GENSTAMP = "genstamp";
   public static final String INODE_SECTION_NUM_BYTES = "numBytes";
+  public static final String INODE_SECTION_CHECKSUM = "checksum";
   public static final String INODE_SECTION_FILE_UNDER_CONSTRUCTION =
       "file-under-construction";
   public static final String INODE_SECTION_CLIENT_NAME = "clientName";
@@ -537,7 +539,8 @@ public final class PBImageXmlWriter {
         out.print("<" + INODE_SECTION_BLOCK + ">");
         o(SECTION_ID, b.getBlockId())
             .o(INODE_SECTION_GENSTAMP, b.getGenStamp())
-            .o(INODE_SECTION_NUM_BYTES, b.getNumBytes());
+            .o(INODE_SECTION_NUM_BYTES, b.getNumBytes())
+            .o(INODE_SECTION_CHECKSUM, Block.encodeChecksumBytes(b.getChecksum().toByteArray()));
         out.print("</" + INODE_SECTION_BLOCK + ">\n");
       }
       out.print("</" + INODE_SECTION_BLOCKS + ">\n");
@@ -771,7 +774,8 @@ public final class PBImageXmlWriter {
               out.print("<" + INODE_SECTION_BLOCK + ">");
               o(SECTION_ID, b.getBlockId())
                   .o(INODE_SECTION_GENSTAMP, b.getGenStamp())
-                  .o(INODE_SECTION_NUM_BYTES, b.getNumBytes());
+                  .o(INODE_SECTION_NUM_BYTES, b.getNumBytes())
+                  .o(INODE_SECTION_CHECKSUM, Block.encodeChecksumBytes(b.getChecksum().toByteArray()));
               out.print("</" + INODE_SECTION_BLOCK + ">\n");
             }
             out.print("</" + INODE_SECTION_BLOCKS + ">\n");

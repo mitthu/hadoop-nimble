@@ -5427,6 +5427,8 @@ public abstract class FSEditLogOp {
         Long.toString(block.getNumBytes()));
     XMLUtils.addSaxString(contentHandler, "GENSTAMP",
         Long.toString(block.getGenerationStamp()));
+    XMLUtils.addSaxString(contentHandler, "CHECKSUM",
+        block.getChecksumAsString());
     contentHandler.endElement("", "", "BLOCK");
   }
 
@@ -5435,7 +5437,11 @@ public abstract class FSEditLogOp {
     long blockId = Long.parseLong(st.getValue("BLOCK_ID"));
     long numBytes = Long.parseLong(st.getValue("NUM_BYTES"));
     long generationStamp = Long.parseLong(st.getValue("GENSTAMP"));
-    return new Block(blockId, numBytes, generationStamp);
+    String checksum = st.getValue("CHECKSUM");
+
+    Block b = new Block(blockId, numBytes, generationStamp);
+    b.setChecksum(checksum);
+    return b;
   }
 
   public static void delegationTokenToXml(ContentHandler contentHandler,

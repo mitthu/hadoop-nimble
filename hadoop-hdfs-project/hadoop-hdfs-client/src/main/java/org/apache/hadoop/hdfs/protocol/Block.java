@@ -50,6 +50,8 @@ import org.slf4j.LoggerFactory;
 public class Block implements Writable, Comparable<Block> {
   public static final String BLOCK_FILE_PREFIX = "blk_";
   public static final String METADATA_EXTENSION = ".meta";
+  public static final String NO_CHECKSUM = "nochecksum";
+  public static final int CHECKSUM_LENGTH = 32;
   static {                                      // register a ctor
     WritableFactories.setFactory(Block.class, new WritableFactory() {
       @Override
@@ -280,6 +282,17 @@ public class Block implements Writable, Comparable<Block> {
     out.writeLong(blockId);
     out.writeLong(numBytes);
     out.writeLong(generationStamp);
+    if (checksum == null) {
+      out.writeInt(0);
+      LOG.info("Serialize Checksum: len=0");
+    }
+    else {
+      out.writeInt(checksum.length);
+      for (int b: checksum) {
+        out.writeByte(b);
+      }
+      LOG.info("Serialize Checksum: len=" + checksum.length + " value=" + getChecksumAsString());
+    }
   }
 
   final void readHelper(DataInput in) throws IOException {
@@ -289,6 +302,12 @@ public class Block implements Writable, Comparable<Block> {
     if (numBytes < 0) {
       throw new IOException("Unexpected block size: " + numBytes);
     }
+    int checksumLength = in.readInt();
+    if (checksumLength != 0) {
+      this.checksum = new byte[checksumLength];
+      in.readFully(this.checksum, 0, checksumLength);
+    }
+    LOG.info("Deserialize Checksum: len=" + checksumLength + " value=" + getChecksumAsString());
   }
 
   // write only the identifier part of the block
@@ -380,15 +399,29 @@ public class Block implements Writable, Comparable<Block> {
 
   public String getChecksumAsString() {
     return (checksum != null) ?
-        BaseEncoding.base64Url().omitPadding().encode(checksum) :
-        "nochecksum";
+        Block.encodeChecksumBytes(checksum) :
+        NO_CHECKSUM;
   }
 
   public void setChecksum(byte[] checksum) {
     this.checksum = checksum;
   }
 
+  public void setChecksum(String checksum) {
+    if (checksum.equals(NO_CHECKSUM))
+      return;
+    setChecksum(Block.decodeChecksumBytes(checksum));
+  }
+
   public void setChecksum(File f) {
     this.checksum = computeChecksum(f);
+  }
+
+  public static String encodeChecksumBytes(byte[] c) {
+    return BaseEncoding.base64Url().omitPadding().encode(c);
+  }
+
+  public static byte[] decodeChecksumBytes(String c) {
+    return BaseEncoding.base64Url().omitPadding().decode(c);
   }
 }

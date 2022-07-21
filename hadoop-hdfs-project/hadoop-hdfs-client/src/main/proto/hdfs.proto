@@ -629,6 +629,7 @@ message BlockProto {
   required uint64 blockId = 1;
   required uint64 genStamp = 2;
   optional uint64 numBytes = 3 [default = 0];
+  optional bytes checksum = 4;
 }
 
 /**
