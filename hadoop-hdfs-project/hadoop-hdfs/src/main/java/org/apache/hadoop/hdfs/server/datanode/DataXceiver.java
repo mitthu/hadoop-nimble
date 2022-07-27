@@ -914,6 +914,9 @@ class DataXceiver extends Receiver implements Runnable {
           LOG.trace("TRANSFER: send close-ack");
           writeResponse(SUCCESS, null, replyOut);
         }
+
+        // set correct checksum (for Nimble)
+        block.setChecksum(blockReceiver.getMemChecksum());
       }
 
       // update its generation stamp

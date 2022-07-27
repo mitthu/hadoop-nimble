@@ -74,6 +74,10 @@ public class ExtendedBlock {
     return block.getGenerationStamp();
   }
 
+  public byte[] getChecksum() {
+    return block.getChecksum();
+  }
+
   public void setBlockId(final long bid) {
     block.setBlockId(bid);
   }
@@ -84,6 +88,10 @@ public class ExtendedBlock {
 
   public void setNumBytes(final long len) {
     block.setNumBytes(len);
+  }
+
+  public void setChecksum(final byte[] ck) {
+    block.setChecksum(ck);
   }
 
   public void set(String poolId, Block blk) {

@@ -29,6 +29,7 @@ import java.io.InterruptedIOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.ByteBuffer;
+import java.security.MessageDigest;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Queue;
@@ -51,6 +52,7 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaInputStreams;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaOutputStreams;
 import org.apache.hadoop.hdfs.server.datanode.metrics.DataNodePeerMetrics;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.util.DataTransferThrottler;
 import org.apache.hadoop.io.IOUtils;
@@ -80,8 +82,11 @@ class BlockReceiver implements Closeable {
   private final long datanodeSlowLogThresholdMs;
   private DataInputStream in = null; // from where data are read
   private DataChecksum clientChecksum; // checksum used by client
-  private DataChecksum diskChecksum; // checksum we write to disk
-  
+  private     DataChecksum     diskChecksum; // checksum we write to disk
+
+  /* Block's Checksum */
+  private MessageDigest memChecksum;
+
   /**
    * In the case that the client is writing with a different
    * checksum polynomial than the block is stored with on disk,
@@ -267,6 +272,7 @@ class BlockReceiver implements Closeable {
       this.needsChecksumTranslation = !clientChecksum.equals(diskChecksum);
       this.bytesPerChecksum = diskChecksum.getBytesPerChecksum();
       this.checksumSize = diskChecksum.getChecksumSize();
+      this.memChecksum = NimbleUtils._checksum();
 
       this.checksumOut = new DataOutputStream(new BufferedOutputStream(
           streams.getChecksumOut(), DFSUtilClient.getSmallBufferSize(
@@ -305,6 +311,10 @@ class BlockReceiver implements Closeable {
 
   Replica getReplica() {
     return replicaInfo;
+  }
+
+  byte[] getMemChecksum() {
+    return memChecksum.digest();
   }
 
   /**
@@ -747,6 +757,9 @@ class BlockReceiver implements Closeable {
           if (duration > maxWriteToDiskMs) {
             maxWriteToDiskMs = duration;
           }
+
+          // Checksum for Nimble
+          memChecksum.update(dataBuf.array(), startByteToDisk, numBytesToDisk);
 
           final byte[] lastCrc;
           if (shouldNotWriteChecksum) {
@@ -1523,6 +1536,7 @@ class BlockReceiver implements Closeable {
         BlockReceiver.this.close();
         endTime = ClientTraceLog.isInfoEnabled() ? System.nanoTime() : 0;
         block.setNumBytes(replicaInfo.getNumBytes());
+        block.setChecksum(getMemChecksum());
         datanode.data.finalizeBlock(block, dirSyncOnFinalize);
       }
 

@@ -880,6 +880,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
             ReplicaNotFoundException.UNEXPECTED_GS_REPLICA + b);
       }
     }
+    LOG.info("getReplicaInfo(): " + info);
     return info;
   }
 
@@ -1779,6 +1780,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
         throw new IOException("Cannot finalize block from Interrupted Thread");
       }
       replicaInfo = getReplicaInfo(b);
+      replicaInfo.setChecksum(b.getChecksum());
       if (replicaInfo.getState() == ReplicaState.FINALIZED) {
         // this is legal, when recovery happens on a file that has
         // been opened for append but never modified

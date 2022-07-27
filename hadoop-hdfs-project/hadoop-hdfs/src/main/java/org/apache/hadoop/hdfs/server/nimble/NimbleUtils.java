@@ -250,7 +250,7 @@ public class NimbleUtils {
         return BaseEncoding.base64Url().decode(value);
     }
 
-    protected static MessageDigest _checksum() throws NimbleError {
+    public static MessageDigest _checksum() throws NimbleError {
         try {
             return MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {

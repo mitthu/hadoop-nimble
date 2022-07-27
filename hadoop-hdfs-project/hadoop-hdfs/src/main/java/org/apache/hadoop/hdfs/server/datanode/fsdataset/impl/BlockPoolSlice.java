@@ -722,7 +722,7 @@ class BlockPoolSlice {
       long genStamp = FsDatasetUtil.getGenerationStampFromFile(
           files, file, i);
       long blockId = Block.filename2id(file.getName());
-      Block block = new Block(file, file.length(), genStamp);
+      Block block = new Block(blockId, file.length(), genStamp);
       addReplicaToReplicasMap(block, volumeMap, lazyWriteReplicaMap,
           isFinalized);
     }
