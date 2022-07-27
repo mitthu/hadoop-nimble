@@ -60,6 +60,10 @@ echo "\
 		<name>fs.defaultFS</name>
 		<value>hdfs://localhost:9000</value>
 	</property>
+	<property>
+		<name>fs.nimbleURI</name>
+		<value>http://localhost:8082/</value>
+	</property>
 </configuration>
 " >/opt/hadoop-3.3.3/etc/hadoop/core-site.xml
 ```
@@ -108,6 +112,10 @@ echo "\
 	<property>
 		<name>fs.defaultFS</name>
 		<value>hdfs://namenode.lxd:9000</value>
+	</property>
+	<property>
+		<name>fs.nimbleURI</name>
+		<value>http://localhost:8082/</value>
 	</property>
 	<property>
 		<name>dfs.namenode.fs-limits.min-block-size</name>
