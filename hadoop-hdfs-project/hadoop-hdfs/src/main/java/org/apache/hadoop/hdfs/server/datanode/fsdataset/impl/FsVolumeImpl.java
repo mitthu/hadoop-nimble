@@ -1204,6 +1204,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
         .setBlockId(replicaInfo.getBlockId())
         .setLength(replicaInfo.getNumBytes())
         .setGenerationStamp(newGS)
+        .setChecksum(replicaInfo.getChecksum())
         .setFsVolume(this)
         .setDirectoryToUse(newBlkFile.getParentFile())
         .setWriterThread(Thread.currentThread())
@@ -1230,6 +1231,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
     LocalReplicaInPipeline newReplicaInfo = new ReplicaBuilder(ReplicaState.RBW)
         .setBlockId(b.getBlockId())
         .setGenerationStamp(b.getGenerationStamp())
+        .setChecksum(b.getChecksum())
         .setFsVolume(this)
         .setDirectoryToUse(f.getParentFile())
         .setBytesToReserve(b.getNumBytes())
@@ -1254,6 +1256,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
         .setBlockId(blockId)
         .setLength(numBytes)
         .setGenerationStamp(expectedGs)
+        .setChecksum(b.getChecksum()) // requires recomputing?
         .setFsVolume(this)
         .setDirectoryToUse(dest.getParentFile())
         .setWriterThread(Thread.currentThread())
@@ -1276,6 +1279,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
         new ReplicaBuilder(ReplicaState.TEMPORARY)
           .setBlockId(b.getBlockId())
           .setGenerationStamp(b.getGenerationStamp())
+          .setChecksum(b.getChecksum())
           .setDirectoryToUse(f.getParentFile())
           .setBytesToReserve(b.getLocalBlock().getNumBytes())
           .setFsVolume(this)
@@ -1295,6 +1299,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
     LocalReplica.truncateBlock(rur.getVolume(), blockFile, metaFile,
         rur.getNumBytes(), newlength, fileIoProvider);
 
+    // TODO: Set checksum correctly
     LocalReplicaInPipeline newReplicaInfo = new ReplicaBuilder(ReplicaState.RBW)
         .setBlockId(newBlockId)
         .setGenerationStamp(recoveryId)
@@ -1463,6 +1468,7 @@ public class FsVolumeImpl implements FsVolumeSpi {
     ReplicaInfo newReplicaInfo = new ReplicaBuilder(ReplicaState.TEMPORARY)
         .setBlockId(replicaInfo.getBlockId())
         .setGenerationStamp(replicaInfo.getGenerationStamp())
+        .setChecksum(replicaInfo.getChecksum())
         .setFsVolume(this)
         .setDirectoryToUse(blockFiles[0].getParentFile())
         .setBytesToReserve(0)

@@ -163,7 +163,7 @@ public class Block implements Writable, Comparable<Block> {
     this.numBytes = len;
     this.generationStamp = genStamp;
     this.checksum = (checksum != null) ? checksum.clone() : null;
-    LOG.info(this.toFullString());
+//    LOG.info(this.toFullString());
   }
 
   public void set(long blkid, long len, long genStamp) {
@@ -248,6 +248,8 @@ public class Block implements Writable, Comparable<Block> {
       // No stack track in client
       if (elm.startsWith("org.apache.hadoop.hdfs.server.datanode.web.webhdfs."))
         return toString() + " (over webhdfs)";
+      else if (elm.startsWith("org.apache.hadoop.hdfs.protocol.proto.ClientNamenodeProtocolProtos"))
+        return toString() + " (by client)";
       trace = trace + System.lineSeparator() + "\t" + elm;
     }
 

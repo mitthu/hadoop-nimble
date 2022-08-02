@@ -66,9 +66,9 @@ public class ReplicaBeingWritten extends LocalReplicaInPipeline {
    *                       the estimated maximum block length.
    */
   // TODO: Set checksum?
-  public ReplicaBeingWritten(long blockId, long len, long genStamp,
+  public ReplicaBeingWritten(long blockId, long len, long genStamp, byte[] checksum,
       FsVolumeSpi vol, File dir, Thread writer, long bytesToReserve) {
-    super(blockId, len, genStamp, null, vol, dir, writer, bytesToReserve);
+    super(blockId, len, genStamp, checksum, vol, dir, writer, bytesToReserve);
   }
 
   /**

@@ -73,7 +73,9 @@ public class ReceivedDeletedBlockInfo {
   }
 
   public byte[] getChecksum() {
-    return this.checksum.clone();
+    if (this.checksum != null)
+      return this.checksum.clone();
+    return null;
   }
 
   public void setChecksum(byte[] checksum) {

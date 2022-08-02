@@ -431,7 +431,7 @@ class BlockPoolSlice {
         .setBlockId(blockId)
         .setLength(replicaInfo.getBytesOnDisk())
         .setGenerationStamp(replicaInfo.getGenerationStamp())
-        .setChecksum(Block.computeChecksum(blockFile))
+        .setChecksum(replicaInfo.getChecksum())
         .setFsVolume(replicaState.getLazyPersistVolume())
         .setDirectoryToUse(targetBlockFile.getParentFile())
         .build();

@@ -19,15 +19,7 @@ package org.apache.hadoop.hdfs.server.datanode;
 
 import static org.apache.hadoop.hdfs.server.datanode.DataNode.DN_CLIENTTRACE_FORMAT;
 
-import java.io.BufferedOutputStream;
-import java.io.Closeable;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.util.ArrayDeque;
@@ -41,6 +33,7 @@ import org.apache.hadoop.fs.ChecksumException;
 import org.apache.hadoop.fs.FSOutputSummer;
 import org.apache.hadoop.fs.StorageType;
 import org.apache.hadoop.hdfs.DFSUtilClient;
+import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.datatransfer.BlockConstructionStage;
@@ -52,6 +45,7 @@ import org.apache.hadoop.hdfs.protocol.proto.DataTransferProtos.Status;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaInputStreams;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.ReplicaOutputStreams;
 import org.apache.hadoop.hdfs.server.datanode.metrics.DataNodePeerMetrics;
+import org.apache.hadoop.hdfs.server.nimble.NimbleError;
 import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
 import org.apache.hadoop.hdfs.util.DataTransferThrottler;
@@ -170,6 +164,7 @@ class BlockReceiver implements Closeable {
       this.myAddr = myAddr;
       this.srcDataNode = srcDataNode;
       this.datanode = datanode;
+      this.memChecksum = NimbleUtils._checksum();
 
       this.clientname = clientname;
       this.isDatanode = clientname.length() == 0;
@@ -232,6 +227,7 @@ class BlockReceiver implements Closeable {
           block.setGenerationStamp(newGs);
           break;
         case PIPELINE_SETUP_APPEND:
+          this.memChecksum = digestToAppend(block); // verify checksum & open for appending
           replicaHandler = datanode.data.append(block, newGs, minBytesRcvd);
           block.setGenerationStamp(newGs);
           datanode.notifyNamenodeReceivingBlock(
@@ -272,7 +268,6 @@ class BlockReceiver implements Closeable {
       this.needsChecksumTranslation = !clientChecksum.equals(diskChecksum);
       this.bytesPerChecksum = diskChecksum.getBytesPerChecksum();
       this.checksumSize = diskChecksum.getChecksumSize();
-      this.memChecksum = NimbleUtils._checksum();
 
       this.checksumOut = new DataOutputStream(new BufferedOutputStream(
           streams.getChecksumOut(), DFSUtilClient.getSmallBufferSize(
@@ -305,6 +300,54 @@ class BlockReceiver implements Closeable {
       throw ioe;
     }
   }
+
+  private MessageDigest digestOfDiskData(ExtendedBlock b) throws IOException {
+    MessageDigest md = NimbleUtils._checksum();
+    InputStream is     = datanode.data.getBlockInputStream(b, 0);
+
+    // Compute checksum of on-disk data
+    byte[]      buffer = new byte[8192];
+    int count;
+    while ((count = is.read(buffer)) > 0) {
+      md.update(buffer, 0, count);
+    }
+    return md;
+  }
+
+  /**
+   * Verify in-memory checksum matches checksum of data on-disk.
+   *
+   * @param b   Block
+   * @return MessageDigest to append
+   * @throws IOException
+   */
+  public MessageDigest digestToAppend(ExtendedBlock b) throws IOException {
+    // Compute checksum of on-disk data
+    MessageDigest md = digestOfDiskData(b);
+    byte[] diskChecksum;
+
+    try {
+      MessageDigest md2 = (MessageDigest) md.clone();
+      diskChecksum = md2.digest();
+    } catch (CloneNotSupportedException e) {
+      LOG.info("Cloning MessageDigest not supported");
+      diskChecksum = md.digest();
+      md = digestOfDiskData(b);
+    }
+
+    // Get checksum stored in-memory
+    Block memBlock = datanode.data.getStoredBlock(b.getBlockPoolId(), b.getBlockId());
+    byte[] memChecksum = memBlock.getChecksum();
+
+    // Verify in-memory checksum is same as on-disk checksum
+    if (!Arrays.equals(memChecksum, diskChecksum)) {
+      LOG.error("Checksum mismatch: expected={} got={}",
+          NimbleUtils.URLEncode(memChecksum), NimbleUtils.URLEncode(diskChecksum));
+      throw new NimbleError("on-disk checksum does not match");
+    }
+    return md;
+  }
+
 
   /** Return the datanode object. */
   DataNode getDataNode() {return datanode;}

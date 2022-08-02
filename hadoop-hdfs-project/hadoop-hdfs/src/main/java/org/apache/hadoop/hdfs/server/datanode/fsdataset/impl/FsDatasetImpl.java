@@ -26,9 +26,11 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,6 +50,8 @@ import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
+import org.apache.hadoop.hdfs.server.nimble.NimbleError;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 
 import org.apache.hadoop.HadoopIllegalArgumentException;
@@ -197,6 +201,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       if (r == null) {
         return null;
       }
+
+      LOG.info("Nimble: getStoredBlock(): " + r);
       return new Block(blkid, r.getBytesOnDisk(), r.getGenerationStamp(), r.getChecksum());
     }
   }

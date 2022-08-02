@@ -194,6 +194,7 @@ class ProvidedVolumeImpl extends FsVolumeImpl {
               .setOffset(region.getProvidedStorageLocation().getOffset())
               .setLength(region.getBlock().getNumBytes())
               .setGenerationStamp(region.getBlock().getGenerationStamp())
+              .setChecksum(region.getBlock().getChecksum())
               .setPathHandle(pathHandle)
               .setFsVolume(providedVolume)
               .setConf(conf)

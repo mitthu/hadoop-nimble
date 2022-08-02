@@ -222,7 +222,7 @@ public class ReplicaBuilder {
         return new ReplicaBeingWritten(block, volume, directoryUsed, writer);
       } else {
         if (length != -1) {
-          return new ReplicaBeingWritten(blockId, length, genStamp,
+          return new ReplicaBeingWritten(blockId, length, genStamp, checksum,
               volume, directoryUsed, writer, bytesToReserve);
         } else {
           return new ReplicaBeingWritten(blockId, genStamp, volume,
