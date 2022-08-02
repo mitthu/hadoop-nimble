@@ -202,7 +202,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
         return null;
       }
 
-      LOG.info("Nimble: getStoredBlock(): " + r);
+//      LOG.info("Nimble: getStoredBlock(): " + r);
       return new Block(blkid, r.getBytesOnDisk(), r.getGenerationStamp(), r.getChecksum());
     }
   }
@@ -886,7 +886,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
             ReplicaNotFoundException.UNEXPECTED_GS_REPLICA + b);
       }
     }
-    LOG.info("getReplicaInfo(): " + info);
+//    LOG.info("getReplicaInfo(): " + info);
     return info;
   }
 
