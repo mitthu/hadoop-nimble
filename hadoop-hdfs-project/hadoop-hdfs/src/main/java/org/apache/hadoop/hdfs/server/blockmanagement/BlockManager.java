@@ -1640,8 +1640,11 @@ public class BlockManager implements BlockStatsMXBean {
 
     int numBlocks = node.numBlocks();
     if(numBlocks == 0) {
+      LOG.info("No blocks for DN");
       return new BlocksWithLocations(new BlockWithLocations[0]);
     }
+    LOG.info("Blocks for DN = " + numBlocks);
+
     // starting from a random block
     int startBlock = ThreadLocalRandom.current().nextInt(numBlocks);
     Iterator<BlockInfo> iter = node.getBlockIterator(startBlock);

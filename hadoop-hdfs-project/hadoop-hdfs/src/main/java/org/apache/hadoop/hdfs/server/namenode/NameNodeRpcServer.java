@@ -1580,6 +1580,24 @@ public class NameNodeRpcServer implements NamenodeProtocols {
   }
 
   @Override // DatanodeProtocol
+  public BlocksWithLocations getBlocksForDatanode(DatanodeInfo datanode, long size, long
+      minBlockSize)
+      throws IOException {
+    if(size <= 0) {
+      throw new IllegalArgumentException(
+          "Unexpected not positive size: "+size);
+    }
+    if(minBlockSize < 0) {
+      throw new IllegalArgumentException(
+          "Unexpected not positive size: "+size);
+    }
+    checkNNStartup();
+    namesystem.checkSuperuserPrivilege();
+    namesystem.checkNameNodeSafeMode("Cannot execute getBlocks");
+    return namesystem.getBlocks(datanode, size, minBlockSize);
+  }
+
+  @Override // DatanodeProtocol
   public HeartbeatResponse sendHeartbeat(DatanodeRegistration nodeReg,
       StorageReport[] report, long dnCacheCapacity, long dnCacheUsed,
       int xmitsInProgress, int xceiverCount,

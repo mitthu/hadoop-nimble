@@ -777,6 +777,7 @@ class BPOfferService {
         "for other block pool " + bp;
 
       dn.finalizeUpgradeForPool(bp);
+      actor.fetchBlockChecksums();
       break;
     case DatanodeProtocol.DNA_RECOVERBLOCK:
       String who = "NameNode at " + actor.getNNSocketAddress();

@@ -24,8 +24,10 @@ import java.util.List;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.DatanodeID;
+import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocol.LocatedBlock;
+import org.apache.hadoop.hdfs.server.namenode.ha.ReadOnly;
 import org.apache.hadoop.io.retry.Idempotent;
 import org.apache.hadoop.security.KerberosInfo;
 
@@ -212,4 +214,21 @@ public interface DatanodeProtocol {
       long newgenerationstamp, long newlength,
       boolean closeFile, boolean deleteblock, DatanodeID[] newtargets,
       String[] newtargetstorages) throws IOException;
+
+  /**
+   * Get a list of blocks belonging to <code>datanode</code>
+   * whose total size equals <code>size</code>.
+   *
+   * @see org.apache.hadoop.hdfs.server.balancer.Balancer
+   * @param datanode  a data node
+   * @param size      requested size
+   * @param minBlockSize each block should be of this minimum Block Size
+   * @return BlocksWithLocations a list of blocks &amp; their locations
+   * @throws IOException if size is less than or equal to 0 or
+  datanode does not exist
+   */
+  @Idempotent
+  @ReadOnly
+  BlocksWithLocations getBlocksForDatanode(DatanodeInfo datanode, long size, long
+      minBlockSize) throws IOException;
 }

@@ -51,18 +51,7 @@ import org.apache.hadoop.hdfs.protocolPB.DatanodeLifelineProtocolClientSideTrans
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.common.IncorrectVersionException;
 import org.apache.hadoop.hdfs.server.namenode.FSNamesystem;
-import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
-import org.apache.hadoop.hdfs.server.protocol.DatanodeCommand;
-import org.apache.hadoop.hdfs.server.protocol.DatanodeRegistration;
-import org.apache.hadoop.hdfs.server.protocol.DatanodeStorage;
-import org.apache.hadoop.hdfs.server.protocol.DisallowedDatanodeException;
-import org.apache.hadoop.hdfs.server.protocol.HeartbeatResponse;
-import org.apache.hadoop.hdfs.server.protocol.NamespaceInfo;
-import org.apache.hadoop.hdfs.server.protocol.SlowDiskReports;
-import org.apache.hadoop.hdfs.server.protocol.SlowPeerReports;
-import org.apache.hadoop.hdfs.server.protocol.StorageBlockReport;
-import org.apache.hadoop.hdfs.server.protocol.StorageReport;
-import org.apache.hadoop.hdfs.server.protocol.VolumeFailureSummary;
+import org.apache.hadoop.hdfs.server.protocol.*;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.net.NetUtils;
@@ -824,6 +813,16 @@ class BPServiceActor implements Runnable {
     scheduler.scheduleBlockReport(dnConf.initialBlockReportDelayMs, true);
   }
 
+  public void fetchBlockChecksums() throws IOException {
+    DatanodeInfo info = new DatanodeInfo.DatanodeInfoBuilder()
+        .setNodeID(bpRegistration)
+        .build();
+    BlocksWithLocations bls = bpNamenode.getBlocksForDatanode(info, Long.MAX_VALUE, 0);
+    LOG.info("BlocksWithLocations: " + bls.getBlocks().length + " " + bls);
+    for (BlocksWithLocations.BlockWithLocations bl: bls.getBlocks()) {
+      LOG.info("BlockWithLocations: " + bl);
+    }
+  }
 
   private void sleepAndLogInterrupts(int millis,
       String stateString) {
