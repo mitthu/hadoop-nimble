@@ -103,6 +103,8 @@ Deploy entire hadoop distribution inside containers:
 # cd <repo-top-level>
 lxc file push ./hadoop-dist/target/hadoop-3.3.3.tar.gz namenode/opt/hadoop-3.3.3.tar.gz
 lxc file push ./hadoop-dist/target/hadoop-3.3.3.tar.gz datanode/opt/hadoop-3.3.3.tar.gz
+lxc exec namenode -- mv /opt/hadoop-3.3.3 /opt/hadoop-3.3.3.bak
+lxc exec datanode -- mv /opt/hadoop-3.3.3 /opt/hadoop-3.3.3.bak
 lxc exec namenode -- tar -xzf /opt/hadoop-3.3.3.tar.gz -C /opt
 lxc exec datanode -- tar -xzf /opt/hadoop-3.3.3.tar.gz -C /opt
 
@@ -198,6 +200,32 @@ curl -i -X PUT -T /home/mitthu/repos/hadoop/README.txt "http://DESKTOP-ALEUKCG.l
 curl -i -X PUT "http://localhost:9870/webhdfs/v1/thedir?op=MKDIRS&permission=777"
 curl -i -X PUT -T /home/mitthu/repos/hadoop/README.txt "http://DESKTOP-ALEUKCG.localdomain:9864/webhdfs/v1/thedir/foo?op=CREATE&user.name=mitthu&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
 ```
+
+### Troubleshooting
+
+#### LXC containers fail to start
+
+Error:
+```bash
+$ lxc info --show-log ubuntu
+lxc namenode 20220726184019.309 WARN     cgfsng - ../src/src/lxc/cgroups/cgfsng.c:cgfsng_setup_limits:3224 - Invalid argument - Ignoring cgroup2 limits on legacy cgroup system
+lxc namenode 20220726184019.881 ERROR    conf - ../src/src/lxc/conf.c:turn_into_dependent_mounts:3919 - No such file or directory - Failed to recursively turn old root mount tree into dependent mount. Continuing...
+lxc namenode 20220726184019.160 ERROR    cgfsng - ../src/src/lxc/cgroups/cgfsng.c:cgfsng_mount:2131 - No such file or directory - Failed to create cgroup at_mnt 24()
+....
+```
+
+Solution:
+```bash
+$ grep cgroup /proc/mounts
+cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime 0 0
+none /sys/fs/cgroup/net_cls cgroup rw,relatime,net_cls 0 0
+
+$ sudo umount /sys/fs/cgroup/net_cls
+```
+
+For more details, 
+see [here](https://discuss.linuxcontainers.org/t/help-help-help-cgroup2-related-issue-on-ubuntu-jammy/14705)
+and [here](https://github.com/lxc/lxd/issues/10441).
 
 ### References
 * [LXC Getting Started](https://linuxcontainers.org/lxd/getting-started-cli/)
