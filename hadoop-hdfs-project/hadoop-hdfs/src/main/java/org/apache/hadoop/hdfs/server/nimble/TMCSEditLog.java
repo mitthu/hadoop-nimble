@@ -19,7 +19,7 @@ import java.util.Arrays;
 public class TMCSEditLog {
     static Logger logger = Logger.getLogger(TMCS.class);
 
-    final public static int AGGREGATE_FREQUENCY = 2; // TODO: change to 100
+    final public static int AGGREGATE_FREQUENCY = 1; // TODO: change to 100
 
     private NimbleUtils.NimbleFSImageInfo fsImage; // base image for all operations
     private boolean apply; // false means don't increment to TMCS (we're verifying)
@@ -55,8 +55,6 @@ public class TMCSEditLog {
 
         // Build tag
         md = NimbleUtils._checksum();
-        md.update(String.valueOf(nextCounter).getBytes(StandardCharsets.UTF_8));
-        md.update(previousTag);
         out = new DataOutputStream(
                 new DigestOutputStream(new NullOutputStream(), md)
         );
@@ -64,6 +62,11 @@ public class TMCSEditLog {
 
     // Send data to EditLogs
     private void finalizeBatch() throws IOException {
+        if (apply)
+            reloadState();
+        md.update(String.valueOf(nextCounter).getBytes(StandardCharsets.UTF_8));
+//        md.update(previousTag);
+
         byte[] digest = md.digest();
         tag = digest; // TODO: Sign this!
         if (apply) {
@@ -80,12 +83,21 @@ public class TMCSEditLog {
      */
     public synchronized void add(FSEditLogOp op) throws IOException {
         try {
+            // only works when AGGREGATE_FREQUENCY=1
+            logger.info(String.format("apply (before): op=%s opcode=%X counter=%d tag=%s",
+                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
+
             out.write(op.opCode.getOpCode()); // OPCODE
+//            TODO: uncomment below line
             op.writeFields(out, NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION); // Fields
             num++;
-            logger.info("record: " + op);
-            if (num >= AGGREGATE_FREQUENCY) // OR a special op
+            logger.info(String.format("record: opcode=%X %s", op.opCode.getOpCode(), op));
+            if (num >= AGGREGATE_FREQUENCY) // OR a specialLogSegmentOp [opCode=OP_START_LOG_SEGMENT, txid=8 op
                 finalizeBatch();
+
+            // only works when AGGREGATE_FREQUENCY=1
+            logger.info(String.format("apply (after): op=%s opcode=%X counter=%d tag=%s",
+                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
         } catch (IOException e) {
             logger.error(e);
             throw e;
@@ -106,6 +118,28 @@ public class TMCSEditLog {
 
         logger.info("State verified (calculated): " + this);
         logger.info("State verified (via TMCS): " + latest);
+    }
+
+    /**
+     * Update internal state from Nimble
+     */
+    private void reloadState() throws IOException {
+        NimbleOpReadLatest latest = TMCS.getInstance().latest();
+        // ensure tag, counter & signature are correct
+
+        if (!Arrays.equals(previousTag, latest.tag)) {
+            logger.info(String.format("Stale state: Incorrect Tag: expecting=%s got=%s",
+                    NimbleUtils.URLEncode(previousTag), NimbleUtils.URLEncode(latest.tag)));
+            logger.info(String.format("State state: Counter: nextCounter=%d got=%d",
+                    nextCounter, latest.counter));
+            previousTag = latest.tag;
+        }
+        if ((nextCounter-1) != latest.counter) {
+            logger.info(String.format("State state: Incorrect Counter: expecting=%d got=%d",
+                    (nextCounter - 1), latest.counter));
+            nextCounter = latest.counter + 1;
+        }
+        // TODO: Verify signature
     }
 
     /**

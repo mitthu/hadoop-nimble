@@ -1280,6 +1280,7 @@ public class FSImage implements Closeable {
                 tmcs.expectedCounter(), info.counter);
         throw new NimbleError(m);
       }
+//      This goes out of sync w/ TMCSEditLog!
       tmcs.increment(info.tag);
 
       // Since we now have a new checkpoint, we can clean up some
