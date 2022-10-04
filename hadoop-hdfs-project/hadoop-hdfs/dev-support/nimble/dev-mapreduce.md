@@ -33,31 +33,32 @@ lxc file push input1.txt namenode/root/input1.txt
 lxc file push input2.txt namenode/root/input2.txt
 ```
 
-Then, store the files in HDFS
+Then run the following:
 
 ```
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -mkdir /user/sangel
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -mkdir /user/sangel/inputs
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -copyFromLocal input1.txt /user/sangel/inputs/input1.txt
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -copyFromLocal input2.txt /user/sangel/inputs/input2.txt
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -mkdir /user
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -mkdir /user/sangel
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -mkdir /user/sangel/inputs
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -copyFromLocal input1.txt /user/sangel/inputs/input1.txt
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -copyFromLocal input2.txt /user/sangel/inputs/input2.txt
 ```
 
 Verify files are stored in HDFS
 
 ```
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -ls /user/sangel/inputs/
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -cat /user/sangel/inputs/input1.txt
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -ls /user/sangel/inputs/
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -cat /user/sangel/inputs/input1.txt
 ```
 
 Run MapReduce:
 
 ```
-exec namenode -- /opt/hadoop-3.3.3/bin/hadoop jar wc.jar WordCount /user/sangel/inputs /user/sangel/outputs
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hadoop jar wc.jar WordCount /user/sangel/inputs /user/sangel/outputs
 ```
 
 Inspect outputs:
 
 ```
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -ls /user/sangel/outputs/
-exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -cat /user/sangel/outputs/part-r-00000
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -ls /user/sangel/outputs/
+lxc exec namenode -- /opt/hadoop-3.3.3/bin/hdfs dfs -cat /user/sangel/outputs/part-r-00000
 ```
