@@ -1280,7 +1280,9 @@ public class FSImage implements Closeable {
                 tmcs.expectedCounter(), info.counter);
         throw new NimbleError(m);
       }
-//      This goes out of sync w/ TMCSEditLog!
+
+      // This goes out of sync w/ TMCSEditLog. Hence, we reread the state in finalizeBatch().
+      // TODO: An optimization would be to set a "stale" flag on TMCS. If set only then we reread the state from Nimble.
       tmcs.increment(info.tag);
 
       // Since we now have a new checkpoint, we can clean up some

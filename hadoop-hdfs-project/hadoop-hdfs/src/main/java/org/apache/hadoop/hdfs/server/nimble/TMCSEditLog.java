@@ -65,7 +65,8 @@ public class TMCSEditLog {
         if (apply)
             reloadState();
         md.update(String.valueOf(nextCounter).getBytes(StandardCharsets.UTF_8));
-//        md.update(previousTag);
+        // Based on our discussions, tracking previousTag is not needees.
+        // md.update(previousTag);
 
         byte[] digest = md.digest();
         tag = digest; // TODO: Sign this!
@@ -84,19 +85,18 @@ public class TMCSEditLog {
     public synchronized void add(FSEditLogOp op) throws IOException {
         try {
             // only works when AGGREGATE_FREQUENCY=1
-            logger.info(String.format("apply (before): op=%s opcode=%X counter=%d tag=%s",
+            logger.debug(String.format("apply (before): op=%s opcode=%X counter=%d tag=%s",
                         op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
 
             out.write(op.opCode.getOpCode()); // OPCODE
-//            TODO: uncomment below line
             op.writeFields(out, NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION); // Fields
             num++;
-            logger.info(String.format("record: opcode=%X %s", op.opCode.getOpCode(), op));
+            logger.debug(String.format("record: opcode=%X %s", op.opCode.getOpCode(), op));
             if (num >= AGGREGATE_FREQUENCY) // OR a specialLogSegmentOp [opCode=OP_START_LOG_SEGMENT, txid=8 op
                 finalizeBatch();
 
             // only works when AGGREGATE_FREQUENCY=1
-            logger.info(String.format("apply (after): op=%s opcode=%X counter=%d tag=%s",
+            logger.debug(String.format("apply (after): op=%s opcode=%X counter=%d tag=%s",
                         op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
         } catch (IOException e) {
             logger.error(e);
