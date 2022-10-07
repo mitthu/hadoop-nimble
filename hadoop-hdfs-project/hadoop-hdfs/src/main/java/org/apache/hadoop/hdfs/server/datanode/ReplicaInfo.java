@@ -17,10 +17,12 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.Arrays;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -28,7 +30,10 @@ import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi.ScanInfo;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
+import org.apache.hadoop.hdfs.server.nimble.NimbleError;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.hdfs.server.protocol.ReplicaRecoveryInfo;
+import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.LightWeightResizableGSet;
 
 /**
@@ -96,6 +101,30 @@ abstract public class ReplicaInfo extends Block
     return (volume != null) ? volume.getFileIoProvider()
         : DEFAULT_FILE_IO_PROVIDER;
   }
+
+  public InputStream getVerifiedDataInputStream(long seekOffset)
+          throws IOException {
+    // Load block to memory
+    InputStream ins = getDataInputStream(0);
+    byte[] data = new byte[(int) this.getNumBytes()];
+    IOUtils.readFully(ins, data, 0, data.length);
+
+    // Verify checksums match
+    byte[] ck = NimbleUtils.checksum(data);
+    if (!Arrays.equals(ck, this.getChecksum())) {
+      String msg = String.format("On disk checksum != in-memory checksum: {} != {} ",
+              NimbleUtils.URLEncode(ck), this.getChecksumAsString());
+      LOG.error(msg);
+      throw new NimbleError(msg);
+    }
+    LOG.info("Verified checksum of " + this);
+
+    // Wrap & return
+    InputStream ret = new ByteArrayInputStream(data);
+    ret.skip(seekOffset);
+    return ret;
+  }
+
 
   /**
    * Set the volume where this replica is located on disk.

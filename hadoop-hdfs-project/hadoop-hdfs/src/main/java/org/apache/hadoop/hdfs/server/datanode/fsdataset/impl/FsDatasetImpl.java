@@ -862,7 +862,10 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       return FsDatasetUtil.getInputStreamAndSeek(
           new File(cachePath), seekOffset);
     }
-    return info.getDataInputStream(seekOffset);
+    // Verify correct checksum. When called from caching, it will cause a double copy.
+    // Potential for optimization!
+    LOG.info("Load block {} to memory", info.getBlockId());
+    return info.getVerifiedDataInputStream(seekOffset);
   }
 
   /**
