@@ -518,6 +518,7 @@ class FSDirWriteFileOp {
         blockInfo.convertToBlockUnderConstruction(
             HdfsServerConstants.BlockUCState.UNDER_CONSTRUCTION, targets);
       }
+      // TRACK THE BLOCK ACROSS BLOCKMANAGER AND INODES!
       fsd.getBlockManager().addBlockCollection(blockInfo, fileINode);
       fileINode.addBlock(blockInfo);
 

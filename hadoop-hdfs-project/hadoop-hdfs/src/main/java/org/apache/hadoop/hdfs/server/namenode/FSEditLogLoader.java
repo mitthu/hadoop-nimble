@@ -1129,7 +1129,7 @@ public class FSEditLogLoader {
     BlockInfo[] oldBlocks = file.getBlocks();
     Block[] newBlocks = op.getBlocks();
     String path = op.getPath();
-    
+
     // Are we only updating the last block's gen stamp.
     boolean isGenStampUpdate = oldBlocks.length == newBlocks.length;
     
@@ -1137,7 +1137,8 @@ public class FSEditLogLoader {
     for (int i = 0; i < oldBlocks.length && i < newBlocks.length; i++) {
       BlockInfo oldBlock = oldBlocks[i];
       Block newBlock = newBlocks[i];
-      
+
+      LOG.info("old: " + oldBlock + " new: " + newBlock);
       boolean isLastBlock = i == newBlocks.length - 1;
       if (oldBlock.getBlockId() != newBlock.getBlockId() ||
           (oldBlock.getGenerationStamp() != newBlock.getGenerationStamp() && 
@@ -1147,7 +1148,8 @@ public class FSEditLogLoader {
             " as block # " + i + "/" + newBlocks.length + " of " +
             path);
       }
-      
+      LOG.info("EditLog: OP_CLOSE: "+ newBlock);
+
       oldBlock.setNumBytes(newBlock.getNumBytes());
       boolean changeMade =
         oldBlock.getGenerationStamp() != newBlock.getGenerationStamp();
@@ -1156,6 +1158,12 @@ public class FSEditLogLoader {
       // Update global generation stamp in Standby NameNode
       fsNamesys.getBlockManager().getBlockIdManager().
           setGenerationStampIfGreater(newGenerationStamp);
+
+      // TODO: Due to bad actors, or just replaying EditLogs? Separate out these cases.
+      if (!Arrays.equals(oldBlock.getChecksum(), newBlock.getChecksum())) {
+        LOG.info("Checksum MISMATCH!");
+        oldBlock.setChecksum(newBlock.getChecksum());
+      }
 
       if (!oldBlock.isComplete() &&
           (!isLastBlock || op.shouldCompleteLastBlock())) {
@@ -1216,6 +1224,7 @@ public class FSEditLogLoader {
                 file.getFileReplication());
           }
         }
+        LOG.info("EditLog: OP_CLOSE: "+ newBI);
         fsNamesys.getBlockManager().addBlockCollectionWithCheck(newBI, file);
         file.addBlock(newBI);
         fsNamesys.getBlockManager().processQueuedMessagesForBlock(newBlock);

@@ -3144,7 +3144,12 @@ public class BlockManager implements BlockStatsMXBean {
       toInvalidate.add(new Block(block));
       return null;
     }
-    storedBlock.setChecksum(block.getChecksum());
+    // Ensure the timestamp is correct!
+    // Only set checksum if it's set. Avoids empty checksums during startup.
+    // This assumption is legal since codebase of the DataNode is trusted.
+    if (block.getChecksum() != null) {
+      storedBlock.setChecksum(block.getChecksum());
+    }
     BlockUCState ucState = storedBlock.getBlockUCState();
 
     // Block is on the NN
