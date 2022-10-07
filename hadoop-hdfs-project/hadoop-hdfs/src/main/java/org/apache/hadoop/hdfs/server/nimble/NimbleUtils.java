@@ -6,6 +6,7 @@ import org.apache.hadoop.hdfs.server.common.Storage;
 import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.hadoop.hdfs.server.namenode.NNStorage;
 import org.apache.hadoop.thirdparty.com.google.common.io.BaseEncoding;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.*;
@@ -29,6 +30,18 @@ public class NimbleUtils {
     public static final String NIMBLE_INFO              = "NIMBLE";
     public static final String NIMBLE_FSIMAGE_EXTENSION = ".nimble";
     public static final boolean READABLE_LOG_OPERATIONS = true;
+
+    static {
+        /* Enable debug logging for all Nimble classes, if debugging is enabled on this class */
+        if (logger.isDebugEnabled()) {
+            NimbleAPI.logger.setLevel(Level.DEBUG);
+            TMCS.logger.setLevel(Level.DEBUG);
+            TMCSEditLog.logger.setLevel(Level.DEBUG);
+        }
+    }
+    public static boolean debug() {
+        return logger.isDebugEnabled();
+    }
 
     public static File getNimbleInfo(Storage.StorageDirectory sd) {
         if (sd.getRoot() == null) {

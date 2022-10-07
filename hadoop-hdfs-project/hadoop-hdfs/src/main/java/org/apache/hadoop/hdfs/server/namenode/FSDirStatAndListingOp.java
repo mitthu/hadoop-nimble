@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.hdfs.server.namenode;
 
+import org.apache.hadoop.hdfs.server.blockmanagement.BlockInfo;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 
 import org.apache.hadoop.fs.ContentSummary;
@@ -42,6 +44,7 @@ import org.apache.hadoop.hdfs.server.namenode.snapshot.DirectorySnapshottableFea
 import org.apache.hadoop.hdfs.server.namenode.snapshot.Snapshot;
 import org.apache.hadoop.hdfs.util.ReadOnlyList;
 import org.apache.hadoop.security.AccessControlException;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -51,6 +54,9 @@ import java.util.EnumSet;
 import static org.apache.hadoop.util.Time.now;
 
 class FSDirStatAndListingOp {
+  public static final org.slf4j.Logger LOG = LoggerFactory
+          .getLogger(FSDirStatAndListingOp.class.getName());
+
   static DirectoryListing getListingInt(FSDirectory fsd, FSPermissionChecker pc,
       final String srcArg, byte[] startAfter, boolean needLocation)
       throws IOException {
@@ -340,6 +346,16 @@ class FSDirStatAndListingOp {
       if (node == null) {
         return null;
       }
+
+      // Print information on all blocks
+      if (NimbleUtils.debug())
+        if (node.isFile()) {
+          INodeFile file = INodeFile.valueOf(node, node.getFullPathName(), true);
+          for (BlockInfo info: file.getBlocks()) {
+            LOG.info("StoredBlock: " + info);
+          }
+        }
+
       byte policy = (includeStoragePolicy && !node.isSymlink())
           ? node.getStoragePolicyID()
           : HdfsConstants.BLOCK_STORAGE_POLICY_ID_UNSPECIFIED;

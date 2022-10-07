@@ -146,6 +146,13 @@ lxc exec namenode --env JAVA_HOME=/usr/lib/jvm/default-java -T -- /opt/hadoop-3.
 lxc exec datanode --env JAVA_HOME=/usr/lib/jvm/default-java -T -- /opt/hadoop-3.3.3/bin/hdfs --daemon start datanode
 ```
 
+Enable debug logging:
+```bash
+$ lxc exec namenode -- vim /opt/hadoop-3.3.3/etc/hadoop/log4j.properties
+# Add the following line & restart NN/DN
+log4j.logger.org.apache.hadoop.hdfs.server.nimble.NimbleUtils=DEBUG
+```
+
 ### Others
 View logs:
 ```bash

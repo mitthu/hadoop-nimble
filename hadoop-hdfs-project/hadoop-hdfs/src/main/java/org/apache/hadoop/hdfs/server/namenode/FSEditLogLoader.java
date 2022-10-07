@@ -27,6 +27,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -1138,7 +1139,8 @@ public class FSEditLogLoader {
       BlockInfo oldBlock = oldBlocks[i];
       Block newBlock = newBlocks[i];
 
-      LOG.info("old: " + oldBlock + " new: " + newBlock);
+      if (NimbleUtils.debug())
+        LOG.info("old: " + oldBlock + " new: " + newBlock);
       boolean isLastBlock = i == newBlocks.length - 1;
       if (oldBlock.getBlockId() != newBlock.getBlockId() ||
           (oldBlock.getGenerationStamp() != newBlock.getGenerationStamp() && 
@@ -1148,7 +1150,8 @@ public class FSEditLogLoader {
             " as block # " + i + "/" + newBlocks.length + " of " +
             path);
       }
-      LOG.info("EditLog: OP_CLOSE: "+ newBlock);
+      if (NimbleUtils.debug())
+        LOG.info("EditLog: OP_CLOSE: "+ newBlock);
 
       oldBlock.setNumBytes(newBlock.getNumBytes());
       boolean changeMade =
@@ -1161,7 +1164,8 @@ public class FSEditLogLoader {
 
       // TODO: Due to bad actors, or just replaying EditLogs? Separate out these cases.
       if (!Arrays.equals(oldBlock.getChecksum(), newBlock.getChecksum())) {
-        LOG.info("Checksum MISMATCH!");
+        if (NimbleUtils.debug())
+          LOG.info("Checksum MISMATCH!");
         oldBlock.setChecksum(newBlock.getChecksum());
       }
 
@@ -1224,7 +1228,8 @@ public class FSEditLogLoader {
                 file.getFileReplication());
           }
         }
-        LOG.info("EditLog: OP_CLOSE: "+ newBI);
+        if (NimbleUtils.debug())
+          LOG.info("EditLog: OP_CLOSE: "+ newBI);
         fsNamesys.getBlockManager().addBlockCollectionWithCheck(newBI, file);
         file.addBlock(newBI);
         fsNamesys.getBlockManager().processQueuedMessagesForBlock(newBlock);

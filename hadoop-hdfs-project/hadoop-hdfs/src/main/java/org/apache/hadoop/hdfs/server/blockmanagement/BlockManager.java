@@ -96,6 +96,7 @@ import org.apache.hadoop.hdfs.server.namenode.Namesystem;
 import org.apache.hadoop.hdfs.server.namenode.ha.HAContext;
 import org.apache.hadoop.hdfs.server.namenode.metrics.NameNodeMetrics;
 import org.apache.hadoop.hdfs.server.namenode.sps.StoragePolicySatisfyManager;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.hdfs.server.protocol.BlockCommand;
 import org.apache.hadoop.hdfs.server.protocol.BlockReportContext;
 import org.apache.hadoop.hdfs.server.protocol.BlocksWithLocations;
@@ -1658,6 +1659,8 @@ public class BlockManager implements BlockStatsMXBean {
         continue;
       }
       totalSize += addBlock(curBlock, results);
+      if (NimbleUtils.debug())
+        LOG.info("Found: " + getStoredBlock(curBlock));
     }
     if(totalSize<size) {
       iter = node.getBlockIterator(); // start from the beginning
@@ -1668,6 +1671,8 @@ public class BlockManager implements BlockStatsMXBean {
           continue;
         }
         totalSize += addBlock(curBlock, results);
+        if (NimbleUtils.debug())
+          LOG.info("Found: " + getStoredBlock(curBlock));
       }
     }
 
