@@ -2070,7 +2070,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
     r = volumeMap.get(bpid, blockId);
     if (r != null) {
       if (r.blockDataExists()) {
-        LOG.info("In memory replica: " + r);
+        LOG.debug("In memory replica: " + r);
         return r;
       }
       // if file is not null, but doesn't exist - possibly disk failed

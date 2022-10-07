@@ -216,6 +216,16 @@ public class SimulatedFSDataset implements FsDatasetSpi<FsVolumeSpi> {
     }
 
     @Override
+    public byte[] getChecksum() {
+      return theBlock.getChecksum();
+    }
+
+    @Override
+    public void setChecksum(byte[] ck) {
+      theBlock.setChecksum(ck);
+    }
+
+    @Override
     synchronized public long getNumBytes() {
       if (!finalized) {
          return bytesRcvd;

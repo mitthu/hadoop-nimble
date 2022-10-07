@@ -31,6 +31,10 @@ public interface Replica {
   /** Get the generation stamp */
   public long getGenerationStamp();
 
+  public byte[] getChecksum();
+
+  public void setChecksum(byte[] ck);
+
   /**
    * Get the replica state
    * @return the replica state

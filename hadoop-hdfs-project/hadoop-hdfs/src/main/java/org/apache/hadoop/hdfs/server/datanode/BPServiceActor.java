@@ -41,12 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.ha.HAServiceProtocol.HAServiceState;
 import org.apache.hadoop.hdfs.client.BlockReportOptions;
-import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
-import org.apache.hadoop.hdfs.protocol.DatanodeInfo;
-import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
-import org.apache.hadoop.hdfs.protocol.LocatedBlock;
-import org.apache.hadoop.hdfs.protocol.RollingUpgradeStatus;
-import org.apache.hadoop.hdfs.protocol.UnregisteredNodeException;
+import org.apache.hadoop.hdfs.protocol.*;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeLifelineProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.common.IncorrectVersionException;
@@ -813,13 +808,41 @@ class BPServiceActor implements Runnable {
     scheduler.scheduleBlockReport(dnConf.initialBlockReportDelayMs, true);
   }
 
-  public void fetchBlockChecksums() throws IOException {
+  public void fetchBlockChecksumsWithRetry(String bpid, DataNode dn) {
+    long retryIn = 10; // seconds
+    boolean ok = false;
+    String safeModeClassName = org.apache.hadoop.hdfs.server.namenode.SafeModeException.class.getName();
+
+    /* Keep trying till we get all checksums */
+    while (!ok)
+      try {
+        LOG.info("Fetching checksums of blocks from the NameNode");
+        fetchBlockChecksums(bpid, dn);
+        ok = true;
+      } catch (org.apache.hadoop.ipc.RemoteException e) {
+        if (e.getClassName().equals(safeModeClassName))
+          LOG.info("NameNode is in safe mode. Will retry fetching checksums in {} seconds.", retryIn);
+        else
+          LOG.info("Exception. Will retry fetching checksums in {} seconds. {}", retryIn, e.getMessage());
+        try {
+          Thread.sleep(retryIn*1000);
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+        }
+      } catch (IOException e) {
+        LOG.info("Failed to fetch checksums of blocks: " + e);
+      }
+  }
+
+  private void fetchBlockChecksums(String bpid, DataNode dn) throws IOException {
     DatanodeInfo info = new DatanodeInfo.DatanodeInfoBuilder()
         .setNodeID(bpRegistration)
         .build();
     BlocksWithLocations bls = bpNamenode.getBlocksForDatanode(info, Long.MAX_VALUE, 0);
     LOG.info("BlocksWithLocations: " + bls.getBlocks().length + " " + bls);
     for (BlocksWithLocations.BlockWithLocations bl: bls.getBlocks()) {
+      Replica replica = dn.data.getReplica(bpid, bl.getBlock().getBlockId());
+      replica.setChecksum(bl.getBlock().getChecksum());
       LOG.info("BlockWithLocations: " + bl);
     }
   }

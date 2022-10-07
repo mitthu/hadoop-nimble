@@ -81,6 +81,14 @@ public class ExternalReplicaInPipeline implements ReplicaInPipeline {
   }
 
   @Override
+  public byte[] getChecksum() {
+    return null;
+  }
+
+  @Override
+  public void setChecksum(byte[] ck) { }
+
+  @Override
   public ReplicaState getState() {
     return ReplicaState.FINALIZED;
   }

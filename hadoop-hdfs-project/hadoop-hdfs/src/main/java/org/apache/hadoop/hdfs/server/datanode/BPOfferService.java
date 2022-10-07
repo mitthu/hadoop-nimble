@@ -775,9 +775,9 @@ class BPOfferService {
       assert getBlockPoolId().equals(bp) :
         "BP " + getBlockPoolId() + " received DNA_FINALIZE " +
         "for other block pool " + bp;
-
+      actor.fetchBlockChecksumsWithRetry(bp, getDataNode());
+      LOG.info("Finalizing pool!");
       dn.finalizeUpgradeForPool(bp);
-      actor.fetchBlockChecksums();
       break;
     case DatanodeProtocol.DNA_RECOVERBLOCK:
       String who = "NameNode at " + actor.getNNSocketAddress();

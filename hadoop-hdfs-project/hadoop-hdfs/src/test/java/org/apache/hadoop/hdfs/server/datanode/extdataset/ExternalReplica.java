@@ -34,6 +34,14 @@ public class ExternalReplica implements Replica {
   }
 
   @Override
+  public byte[] getChecksum() {
+    return null;
+  }
+
+  @Override
+  public void setChecksum(byte[] ck) { }
+
+  @Override
   public ReplicaState getState() {
     return ReplicaState.FINALIZED;
   }
