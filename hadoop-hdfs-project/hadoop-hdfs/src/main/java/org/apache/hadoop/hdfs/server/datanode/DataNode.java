@@ -2972,6 +2972,7 @@ public class DataNode extends ReconfigurableBase
     newBlock.setGenerationStamp(recoveryId);
     newBlock.setBlockId(newBlockId);
     newBlock.setNumBytes(newLength);
+    newBlock.setChecksum(r.getChecksum());
     final String storageID = r.getStorageUuid();
     notifyNamenodeReceivedBlock(newBlock, null, storageID,
         r.isOnTransientStorage());

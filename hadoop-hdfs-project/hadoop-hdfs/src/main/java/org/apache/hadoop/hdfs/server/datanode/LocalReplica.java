@@ -17,18 +17,14 @@
  */
 package org.apache.hadoop.hdfs.server.datanode;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -36,6 +32,8 @@ import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsVolumeSpi.ScanInfo;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.LengthInputStream;
+import org.apache.hadoop.hdfs.server.nimble.NimbleError;
+import org.apache.hadoop.hdfs.server.nimble.NimbleUtils;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.util.DataChecksum;
@@ -390,8 +388,9 @@ abstract public class LocalReplica extends ReplicaInfo {
 
   @Override
   public void truncateBlock(long newLength) throws IOException {
-    truncateBlock(getVolume(), getBlockFile(), getMetaFile(),
-        getNumBytes(), newLength, getFileIoProvider());
+    byte[] newChecksum = truncateBlock(getVolume(), getBlockFile(), getMetaFile(),
+        getNumBytes(), newLength, getChecksum(), getFileIoProvider());
+    setChecksum(newChecksum);
   }
 
   @Override
@@ -466,9 +465,47 @@ abstract public class LocalReplica extends ReplicaInfo {
     localFS.setPermission(path, permission);
   }
 
-  public static void truncateBlock(
+
+  public static byte[] getBlockChecksumTill(RandomAccessFile file, byte[] expectChecksum, long tillLen) throws IOException {
+    MessageDigest md  = _checksum();
+    byte[] fullChecksum, paritalChecksum;
+
+    // Sanity checks
+    if (expectChecksum == null) {
+      LOG.error("Full block's checksum set to null while truncating. Recovering due to a disk error?");
+      throw new NimbleError("Truncating block without a known checksum");
+    }
+
+    // Calculate partial checksum
+    byte content[] = new byte[(int) file.length()];
+    file.readFully(content);
+    md.update(content, 0, (int) tillLen);
+
+    try {
+      MessageDigest md2 = (MessageDigest) md.clone();
+      paritalChecksum = md2.digest();
+    } catch (CloneNotSupportedException e) {
+      LOG.info("Cloning MessageDigest not supported");
+      throw new NimbleError("Cloning checksum is not supported. Cannot reliably truncate block.");
+    }
+
+    // Remaining checksum
+    md.update(content, (int) tillLen, (int)file.length() - (int)tillLen);
+    fullChecksum = md.digest();
+
+    if (!Arrays.equals(expectChecksum, fullChecksum)) {
+      LOG.error("Existing block's checksum mismatch when truncating. {} (exp.) != {} (calc.)",
+              NimbleUtils.URLEncode(expectChecksum), NimbleUtils.URLEncode(fullChecksum));
+      throw new NimbleError("Incorrect checksum while truncating file");
+    }
+
+    LOG.info("Updated checksum for truncated block: {}", NimbleUtils.URLEncode(paritalChecksum));
+    return paritalChecksum;
+  }
+
+  public static byte[] truncateBlock(
       FsVolumeSpi volume, File blockFile, File metaFile,
-      long oldlen, long newlen, FileIoProvider fileIoProvider)
+      long oldlen, long newlen, byte[] expectChecksum, FileIoProvider fileIoProvider)
       throws IOException {
     LOG.info("truncateBlock: blockFile=" + blockFile
         + ", metaFile=" + metaFile
@@ -476,7 +513,7 @@ abstract public class LocalReplica extends ReplicaInfo {
         + ", newlen=" + newlen);
 
     if (newlen == oldlen) {
-      return;
+      return expectChecksum;
     }
     if (newlen > oldlen) {
       throw new IOException("Cannot truncate block to from oldlen (=" + oldlen
@@ -494,9 +531,12 @@ abstract public class LocalReplica extends ReplicaInfo {
     long lastchunkoffset = (n - 1)*bpc;
     int lastchunksize = (int)(newlen - lastchunkoffset);
     byte[] b = new byte[Math.max(lastchunksize, checksumsize)];
+    byte[] newChecksum; // for Nimble
 
     try (RandomAccessFile blockRAF = fileIoProvider.getRandomAccessFile(
         volume, blockFile, "rw")) {
+      newChecksum = getBlockChecksumTill(blockRAF, expectChecksum, newlen);
+
       //truncate blockFile
       blockRAF.setLength(newlen);
 
@@ -516,6 +556,8 @@ abstract public class LocalReplica extends ReplicaInfo {
       metaRAF.seek(newmetalen - checksumsize);
       metaRAF.write(b, 0, checksumsize);
     }
+
+    return newChecksum;
   }
 
   /**

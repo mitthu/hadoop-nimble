@@ -1296,13 +1296,14 @@ public class FsVolumeImpl implements FsVolumeSpi {
         copyReplicaWithNewBlockIdAndGS(rur, bpid, newBlockId, recoveryId);
     File blockFile = copiedReplicaFiles[1];
     File metaFile = copiedReplicaFiles[0];
-    LocalReplica.truncateBlock(rur.getVolume(), blockFile, metaFile,
-        rur.getNumBytes(), newlength, fileIoProvider);
+    byte[] newChecksum = LocalReplica.truncateBlock(rur.getVolume(), blockFile, metaFile,
+        rur.getNumBytes(), newlength, rur.getChecksum(), fileIoProvider);
 
     // TODO: Set checksum correctly
     LocalReplicaInPipeline newReplicaInfo = new ReplicaBuilder(ReplicaState.RBW)
         .setBlockId(newBlockId)
         .setGenerationStamp(recoveryId)
+        .setChecksum(newChecksum)
         .setFsVolume(this)
         .setDirectoryToUse(blockFile.getParentFile())
         .setBytesToReserve(newlength)
