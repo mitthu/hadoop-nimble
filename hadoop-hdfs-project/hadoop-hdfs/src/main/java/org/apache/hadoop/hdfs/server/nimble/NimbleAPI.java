@@ -84,6 +84,7 @@ public class NimbleAPI implements Closeable {
         URI uri = UriBuilder
                 .fromUri(nimble_rest_uri)
                 .replacePath("/serviceid")
+                .queryParam("pkformat", "compressed")
                 .build();
 
         // Build HTTP request
