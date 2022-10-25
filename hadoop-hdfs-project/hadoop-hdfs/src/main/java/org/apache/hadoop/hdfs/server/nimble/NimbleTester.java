@@ -4,17 +4,13 @@ import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.common.Storage;
-import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp;
 import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.hadoop.hdfs.server.namenode.NNStorage;
-import org.apache.hadoop.hdfs.util.XMLUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.xml.sax.ContentHandler;
-import org.xml.sax.SAXException;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.security.*;
 import java.security.spec.*;
 import java.util.*;
@@ -25,7 +21,7 @@ public class NimbleTester {
     static Logger logger = Logger.getLogger(NimbleTester.class);
 
     /* For development and testing only */
-    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, InvalidKeySpecException, SignatureException, InvalidParameterSpecException, DecoderException {
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, InvalidKeySpecException, SignatureException, InvalidParameterSpecException, DecoderException, URISyntaxException {
         logger.setLevel(Level.DEBUG);
         logger.debug("Run Nimble workflow for testing");
         Configuration conf = new Configuration();
@@ -57,7 +53,7 @@ public class NimbleTester {
     /**
      * Test TMCS Nimble API
      */
-    public static void test_TMCS() throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException {
+    public static void test_TMCS() throws IOException {
         logger.info("Testing TMCS");
         TMCS tmcs = TMCS.getInstance();
         TMCS.format(new Configuration());
@@ -77,7 +73,7 @@ public class NimbleTester {
     /**
      * Test TMCS Nimble API
      */
-    public static void test_workflow(NimbleAPI n) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException {
+    public static void test_workflow(NimbleAPI n) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, DecoderException, URISyntaxException {
         logger.info("Testing NimbleAPI");
         NimbleServiceID id = NimbleUtils.loadAndValidateNimbleInfo(n);
         assert id.handle != null;
@@ -85,6 +81,7 @@ public class NimbleTester {
         // Step 0: Sanity checks
 //        test_verify_1(n);
 //        test_verify_2(n);
+        test_verify_3(n);
 
         // Step 1: NewCounter Request
         NimbleOp op;
@@ -155,5 +152,24 @@ public class NimbleTester {
         logger.info(service);
         boolean signature = service.verifySignature(sig_b, m_b);
         logger.info("Signature: " + signature);
+    }
+
+    /**
+     * Test signature verification from static content.
+     */
+    public static void test_verify_3(NimbleAPI n) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException {
+        // New Counter Response
+        String pkStr = "BOFFzset0458QLqmae92__sjv_zTwJRZH9P0PeI3TvP7Kj1j_J7w-LxgwkkL7doHQtuUDP0BxM6vnvz9O8w0WKY",
+               msgStr = "ziFukI0-0-WnvW_cgQ7bS6TGG6gkUr5DzneENpexTr0.NX5JoOCjT-u4aiLKJq9IWQ.AAAAAAAAAAA.VDqSDZA1EZfBg-KCcI5hFQ",
+               sigStr = "jDSRYTmCRUMuRPaJ4XZE5ZkjFgXK0Q_NbImwL-QuRYKqh2jwYhVOshhcb9UJwsW_n2Ey9ct-gBUUqVGP-F9Ang";
+        byte[] pk = NimbleUtils.URLDecode(pkStr),
+               msg = msgStr.getBytes(),
+               sig = NimbleUtils.URLDecode(sigStr);
+
+        // Mock service ID and create verify signature
+        NimbleServiceID service = new NimbleServiceID(new byte[]{}, pk, null);
+        logger.info(service);
+        boolean signature = service.verifySignature(sig, msg);
+        logger.info("Verification Result: " + signature);
     }
 }

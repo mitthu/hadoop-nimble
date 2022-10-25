@@ -1,5 +1,11 @@
 package org.apache.hadoop.hdfs.server.nimble;
 
+import org.bouncycastle.jce.ECNamedCurveTable;
+import org.bouncycastle.jce.ECPointUtil;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
+import org.bouncycastle.jce.spec.ECNamedCurveSpec;
+
 import java.math.BigInteger;
 import java.security.*;
 import java.security.interfaces.ECPublicKey;
@@ -12,13 +18,13 @@ public final class NimbleServiceID {
     public byte[] publicKey;
     public byte[] handle;
 
-    private ECPublicKey pk;
+    private PublicKey pk;
 
     public NimbleServiceID(byte[] identity, byte[] publicKey, byte[] handle) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
         this.identity = identity;
         this.publicKey = publicKey;
         this.handle = handle;
-        setECPublicKey();
+        this.pk = parsePublicKey(publicKey);
     }
 
     public NimbleServiceID(String identity, String publicKey, String handle) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
@@ -31,9 +37,9 @@ public final class NimbleServiceID {
     @Override
     public String toString() {
         return "NimbleServiceID{" +
-                "identity=" + Arrays.toString(identity) +
-                ", publicKey=" + Arrays.toString(publicKey) +
-                ", handle=" + Arrays.toString(handle) +
+                "identity=" + NimbleUtils.URLEncode(identity) +
+                ", publicKey=" + NimbleUtils.URLEncode(publicKey) +
+                ", handle=" + NimbleUtils.URLEncode(handle) +
                 '}';
     }
 
@@ -49,33 +55,22 @@ public final class NimbleServiceID {
                 this.handle.length != 0;
     }
 
-    /**
-     * Parse raw bytes of public key into Java compatible public key.
-     * <p>
-     * https://stackoverflow.com/a/56170785
-     *
-     * @throws NoSuchAlgorithmException
-     * @throws InvalidParameterSpecException
-     * @throws InvalidKeySpecException
-     */
-    private void setECPublicKey() throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
-        byte[] x = Arrays.copyOfRange(publicKey, 0, publicKey.length / 2);
-        byte[] y = Arrays.copyOfRange(publicKey, publicKey.length / 2, publicKey.length);
+    public static PublicKey parsePublicKey(byte[] pubKey) throws InvalidKeySpecException, NoSuchAlgorithmException {
+        ECNamedCurveParameterSpec spec = ECNamedCurveTable
+                .getParameterSpec("prime256v1");
+        ECNamedCurveSpec params = new ECNamedCurveSpec("prime256v1",
+                spec.getCurve(), spec.getG(), spec.getN());
 
-        // Construct ECParameterSpec
-        AlgorithmParameters params = AlgorithmParameters.getInstance("EC");
-        params.init(new ECGenParameterSpec("secp256r1"));
-        ECParameterSpec spec = params.getParameterSpec(ECParameterSpec.class);
-
-        // Generate ECPublicKey
-        KeyFactory kf = KeyFactory.getInstance("EC");
-        ECPoint    w  = new ECPoint(new BigInteger(1, x), new BigInteger(1, y));
-        this.pk = (ECPublicKey) kf.generatePublic(new ECPublicKeySpec(w, spec));
+        ECPoint point = ECPointUtil.decodePoint(params.getCurve(), pubKey);
+        ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(point, params);
+        KeyFactory kf = KeyFactory.getInstance("ECDSA", new BouncyCastleProvider());
+        ECPublicKey pk = (ECPublicKey) kf.generatePublic(pubKeySpec);
+        return pk;
     }
 
     /**
      * Verify the signature on the given message.
-     * <p>
+     *
      * https://etzold.medium.com/elliptic-curve-signatures-and-how-to-use-them-in-your-java-application-b88825f8e926
      *
      * @param signature Represented as a pair of (r, s)
@@ -89,7 +84,7 @@ public final class NimbleServiceID {
     public boolean verifySignature(byte[] signature, byte[] msg) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, NoSuchProviderException {
         // Available algorithms:
         // https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyFactory
-        Signature sg = Signature.getInstance("SHA256withECDSA", "SunEC");
+        Signature sg = Signature.getInstance("SHA256withECDSA", new BouncyCastleProvider());
 
         // Verification
         sg.initVerify(pk);
@@ -99,7 +94,7 @@ public final class NimbleServiceID {
 
     /**
      * Encode raw signature into ANS.1 format
-     * <p>
+     *
      * ANS.1 Format => 0x30 b1 0x02 b2 (vr) 0x02 b3 (vs)
      * where,
      * b1 is a single byte value, equal to the length, in bytes, of the remaining list of bytes
@@ -107,7 +102,8 @@ public final class NimbleServiceID {
      * b3 is a single byte value, equal to the length, in bytes, of (vs);
      * (vr) is the signed big-endian encoding of the value "r", of minimal length;
      * (vs) is the signed big-endian encoding of the value "s", of minimal length.
-     * <p>
+     *
+     * Taken from:
      * https://stackoverflow.com/a/56839652
      * https://crypto.stackexchange.com/a/1797
      *

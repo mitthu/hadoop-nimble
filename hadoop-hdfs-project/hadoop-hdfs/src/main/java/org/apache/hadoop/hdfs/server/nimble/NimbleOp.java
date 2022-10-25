@@ -2,10 +2,7 @@ package org.apache.hadoop.hdfs.server.nimble;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.SignatureException;
+import java.security.*;
 import java.util.ArrayList;
 
 /* Captures responses */
@@ -25,10 +22,10 @@ abstract class NimbleOp {
     public static final long TYPE_READ_COUNTER = 5;
 
     // Verify signature
-    public boolean verify() {
-        String str = this.toString();
+    public boolean verify() throws NimbleError {
+        String msg = this.toString();
         try {
-            return id.verifySignature(signature, str.getBytes());
+            return id.verifySignature(signature, msg.getBytes());
         } catch (InvalidKeyException e) {
             e.printStackTrace();
         } catch (SignatureException e) {
