@@ -89,6 +89,9 @@ public class NimbleTester {
         // Step 1: NewCounter Request
         NimbleOp op;
         op = n.newCounter(id, "some-tag-value".getBytes());
+        logger.info(op.toString());
+        // Print byte representation of to be hashed & signed
+        //logger.info(NimbleOp.toNimbleStringRepr(op.toString().getBytes()));
         logger.info("NewCounter (verify): " + op.verify());
 
         // Step 2: Read Latest w/ Nonce

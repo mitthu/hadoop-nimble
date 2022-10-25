@@ -1,5 +1,7 @@
 package org.apache.hadoop.hdfs.server.nimble;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -14,8 +16,13 @@ abstract class NimbleOp {
 
     // From Response
     public byte[] tag;
-    public int    counter;
+    public int  counter;
     public byte[] signature;
+
+    // Message Types
+    public static final long TYPE_NEW_COUNTER = 1;
+    public static final long TYPE_INCREMENT_COUNTER = 3;
+    public static final long TYPE_READ_COUNTER = 5;
 
     // Verify signature
     public boolean verify() {
@@ -49,5 +56,15 @@ abstract class NimbleOp {
             as.add(b & 0xFF);
         }
         return as.toString();
+    }
+
+    /**
+     * Convert long to byte buffer (use little endian)
+     */
+    public static byte[] longToBytes(long i) {
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        buffer.putLong(i);
+        return buffer.array();
     }
 }

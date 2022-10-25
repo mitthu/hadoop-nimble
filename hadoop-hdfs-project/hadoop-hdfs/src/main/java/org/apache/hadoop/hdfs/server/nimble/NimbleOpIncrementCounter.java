@@ -12,13 +12,21 @@ class NimbleOpIncrementCounter extends NimbleOp {
         this.signature = NimbleUtils.URLDecode((String) json.get("Signature"));
     }
 
+    /**
+     * Format:
+     * MsgType.NimbleID.Handle.Counter.Tag
+     *
+     * Example encoding:
+     * AwAAAAAAAAA.C9JtOpmXyBd-anyeBbhr5RZ0ac2urm5Nt-z_C88wfvU.HKL9dcyf4dsrhskxUHeF-g.AQAAAAAAAAA.dGFnXzE
+     */
     @Override
     public String toString() {
-        return String.format("IncrementCounter id: %s, handle = %s, tag = %s, counter = %d",
-                NimbleOp.toNimbleStringRepr(id.identity),
-                NimbleOp.toNimbleStringRepr(handle),
-                NimbleOp.toNimbleStringRepr(tag),
-                counter
+        return String.format("%s.%s.%s.%s.%s",
+                NimbleUtils.URLEncode(longToBytes(TYPE_INCREMENT_COUNTER)), // Message Type
+                NimbleUtils.URLEncode(id.identity),
+                NimbleUtils.URLEncode(handle),
+                NimbleUtils.URLEncode(longToBytes(counter)),
+                NimbleUtils.URLEncode(tag)
         );
     }
 }

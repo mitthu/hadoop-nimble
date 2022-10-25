@@ -16,14 +16,22 @@ public class NimbleOpReadLatest extends NimbleOp {
         this.signature = NimbleUtils.URLDecode((String) json.get("Signature"));
     }
 
+    /**
+     * Format:
+     * MsgType.NimbleID.Handle.Counter.Tag.Nonce
+     *
+     * Example encoding:
+     * BQAAAAAAAAA.C9JtOpmXyBd-anyeBbhr5RZ0ac2urm5Nt-z_C88wfvU.HKL9dcyf4dsrhskxUHeF-g.AAAAAAAAAAA.c29tZS10YWctdmFsdWU.Cl9crZbg3dwS9W30jT0j2A
+     */
     @Override
     public String toString() {
-        return String.format("ReadCounter id: %s, handle = %s, tag = %s, counter = %d, nonce = %s",
-                NimbleOp.toNimbleStringRepr(id.identity),
-                NimbleOp.toNimbleStringRepr(handle),
-                NimbleOp.toNimbleStringRepr(tag),
-                counter,
-                NimbleOp.toNimbleStringRepr(nonce)
+        return String.format("%s.%s.%s.%s.%s.%s",
+                NimbleUtils.URLEncode(longToBytes(TYPE_READ_COUNTER)), // Message Type
+                NimbleUtils.URLEncode(id.identity),
+                NimbleUtils.URLEncode(handle),
+                NimbleUtils.URLEncode(longToBytes(counter)),
+                NimbleUtils.URLEncode(tag),
+                NimbleUtils.URLEncode(nonce)
         );
     }
 }
