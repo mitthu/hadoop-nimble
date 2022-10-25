@@ -106,7 +106,10 @@ public class TMCS implements Closeable {
     public void _initialize(byte[] tag) throws IOException {
         NimbleOp op = api.newCounter(id, tag);
         counter = 0;
-        op.verify(); // TODO: throw exception on failure
+        if (!op.verify())
+            throw new NimbleError("Verification failed for NewCounter");
+        else
+            logger.info("Verified NewCounter");
     }
 
     public synchronized void initialize(byte[] tag) throws IOException {
@@ -119,14 +122,20 @@ public class TMCS implements Closeable {
 
         NimbleOp op = api.incrementCounter(id, tag, counter+1);
         counter++;
-        op.verify(); // TODO: throw exception on failure
+        if (!op.verify())
+            throw new NimbleError("Verification failed for IncrementCounter");
+        else
+            logger.info("Verified IncrementCounter");
         logger.info(String.format("increment: newCounter=%d tag=%s",
                 counter, NimbleUtils.URLEncode(tag)));
     }
 
     private NimbleOpReadLatest _latest() throws IOException {
         NimbleOpReadLatest op = api.readLatest(id);
-        op.verify(); // TODO: throw exception on failure
+        if (!op.verify())
+            throw new NimbleError("Verification failed for ReadCounter");
+        else
+            logger.info("Verified ReadCounter");
         return op;
     }
 
