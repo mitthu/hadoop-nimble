@@ -30,6 +30,16 @@ We want to compile the entire Hadoop distribution and deploy it inside container
 mvn package -Pdist -DskipTests -Dtar -Dmaven.javadoc.skip=true
 ```
 
+Configuration options for tweaking Nimble are below.
+These can be set via the `core-site.xml` config file.
+
+fs.nimbleURI
+    : URL of NimbleLedger's REST endpoint.
+
+fs.nimble.aggregateFrequency
+    : Number of operations to wait for before incrementing the counter.
+
+
 ### Setup Local cluster
 
 ```bash
@@ -202,19 +212,39 @@ java org/apache/hadoop/hdfs/Nimble
 ```
 
 WebHDFS Commands:
+
 ```bash
-USER=mitthu
+# Set the user for running commands
+USER=root
+
 # Change perms
-curl -i -X PUT "http://localhost:9870/webhdfs/v1/?op=SETPERMISSION&permission=777&user.name=$USER"
+curl -i -X PUT "http://namenode.lxd:9870/webhdfs/v1/?op=SETPERMISSION&permission=777&user.name=$USER"
 
-# Create file
-curl -i -X PUT -T /home/mitthu/repos/hadoop/README.txt "http://DESKTOP-ALEUKCG.localdomain:9864/webhdfs/v1/foo?op=CREATE&user.name=mitthu&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
-# "http://localhost:9864/webhdfs/v1/foo?op=CREATE&blocksize=5&permission=777&user.name=$USER"
+# CREATE file (single block)
+curl -i -X PUT -T /opt/hadoop-3.3.3/README.txt "http://datanode.lxd:9864/webhdfs/v1/foo?op=CREATE&user.name=$USER&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
 
-# Create dir
-curl -i -X PUT "http://localhost:9870/webhdfs/v1/thedir?op=MKDIRS&permission=777"
-curl -i -X PUT -T /home/mitthu/repos/hadoop/README.txt "http://DESKTOP-ALEUKCG.localdomain:9864/webhdfs/v1/thedir/foo?op=CREATE&user.name=mitthu&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
+# CREATE file (multi block)
+curl -i -X PUT -T /opt/hadoop-3.3.3/share/hadoop/yarn/hadoop-yarn-applications-catalog-webapp-3.3.3.war "http://datanode.lxd:9864/webhdfs/v1/yarn.war?op=CREATE&user.name=$USER&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
+
+# APPEND file
+curl -i -X POST -T /opt/hadoop-3.3.3/README.txt "http://datanode.lxd:9864/webhdfs/v1/foo?op=APPEND&permission=777&user.name=$USER&namenoderpcaddress=namenode.lxd:9000"
+
+# READ file
+curl -i "http://datanode.lxd:9864/webhdfs/v1/foo?op=OPEN&user.name=$USER&namenoderpcaddress=namenode.lxd:9000"
+
+# STAT file
+curl -i  "http://namenode.lxd:9870/webhdfs/v1/foo?op=LISTSTATUS"
+curl -i  "http://namenode.lxd:9870/webhdfs/v1/foo?op=GETFILESTATUS"
+
+# DELETE file
+curl -i -X DELETE "http://namenode.lxd:9870/webhdfs/v1/foo?op=DELETE&recursive=true&user.name=$USER"
+
+# MKDIR
+curl -i -X PUT "http://namenode.lxd:9870/webhdfs/v1/thedir?op=MKDIRS&permission=777&user.name=$USER"
 ```
+
+Note: The default port for WebHDFS is 9870.
+
 
 ### Troubleshooting
 
