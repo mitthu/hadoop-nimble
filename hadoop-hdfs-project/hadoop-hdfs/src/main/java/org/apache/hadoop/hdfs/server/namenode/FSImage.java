@@ -1245,6 +1245,11 @@ public class FSImage implements Closeable {
         source, txid, canceler);
     
     try {
+      if (this.getEditLog().getTMCSEdits() != null) { // is null when formatting filesystem
+        LOG.info("Flush any pending edit log operations");
+        this.getEditLog().getTMCSEdits().flush();
+      }
+
       List<Thread> saveThreads = new ArrayList<Thread>();
       // save images into current
       for (Iterator<StorageDirectory> it
@@ -1283,7 +1288,13 @@ public class FSImage implements Closeable {
 
       // This goes out of sync w/ TMCSEditLog. Hence, we reread the state in finalizeBatch().
       // TODO: An optimization would be to set a "stale" flag on TMCS. If set only then we reread the state from Nimble.
-      tmcs.increment(info.tag);
+      if (this.getEditLog().getTMCSEdits() != null) { // is null when formatting filesystem
+        LOG.info("Updating NimbleLedger via TMCSEditLog");
+        this.getEditLog().getTMCSEdits().recordImage(info.tag);
+      } else {
+        LOG.info("Updating NimbleLedger via TMCS");
+        tmcs.increment(info.tag);
+      }
 
       // Since we now have a new checkpoint, we can clean up some
       // old edit logs and checkpoints.

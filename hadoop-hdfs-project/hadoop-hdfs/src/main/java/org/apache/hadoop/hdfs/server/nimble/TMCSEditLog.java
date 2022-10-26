@@ -19,7 +19,7 @@ import java.util.Arrays;
 public class TMCSEditLog {
     static Logger logger = Logger.getLogger(TMCS.class);
 
-    final public static int AGGREGATE_FREQUENCY = 1; // TODO: change to 100
+    final public static int AGGREGATE_FREQUENCY = 2; // TODO: change to 100
 
     private NimbleUtils.NimbleFSImageInfo fsImage; // base image for all operations
     private boolean apply; // false means don't increment to TMCS (we're verifying)
@@ -65,7 +65,7 @@ public class TMCSEditLog {
         if (apply)
             reloadState();
         md.update(String.valueOf(nextCounter).getBytes(StandardCharsets.UTF_8));
-        // Based on our discussions, tracking previousTag is not needees.
+        // Based on our discussions, tracking previousTag is not needed.
         // md.update(previousTag);
 
         byte[] digest = md.digest();
@@ -102,6 +102,31 @@ public class TMCSEditLog {
             logger.error(e);
             throw e;
         }
+    }
+
+    public synchronized void flush() throws IOException {
+        if (num > 0) {
+            logger.info("flush " + num + " edit log operations");
+            finalizeBatch();
+        }
+    }
+
+    /**
+     * Record the tag of new FSImage
+     *
+     * Ensure to flush() pending operations before this.
+     */
+    public synchronized void recordImage(byte[] tag) throws IOException {
+        logger.debug("record image creation");
+        if (num > 0)
+            throw new NimbleError(num + " edit log operations are still not flushed");
+
+        // Record new FSImage creation
+        TMCS.getInstance().increment(tag);
+
+        // Update bookkeeping
+        previousTag = tag;
+        nextCounter++;
     }
 
     public synchronized void verifyState() throws IOException {

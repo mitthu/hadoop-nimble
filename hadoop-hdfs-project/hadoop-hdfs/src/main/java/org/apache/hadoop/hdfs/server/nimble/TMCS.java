@@ -120,6 +120,7 @@ public class TMCS implements Closeable {
         if (counter == -1)
             throw new NimbleError("not initialized");
 
+        // TODO: Sign tag
         NimbleOp op = api.incrementCounter(id, tag, counter+1);
         counter++;
         if (!op.verify())
