@@ -14,21 +14,43 @@ import java.util.Arrays;
 
 /* NimbleServiceID */
 public final class NimbleServiceID {
+    final String SIGN_SPEC = "secp256k1";
+    final String SIGN_ALGO = "SHA256withECDSA";
+
     public byte[] identity;
     public byte[] publicKey;
     public byte[] handle;
 
+    // Signing keys
+    private PublicKey signPublicKey;
+    private PrivateKey signPrivateKey;
+
     private PublicKey pk;
 
-    public NimbleServiceID(byte[] identity, byte[] publicKey, byte[] handle) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
+    public NimbleServiceID(byte[] identity, byte[] publicKey, byte[] handle, byte[] signPublicKey, byte[] signPrivateKey) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
         this.identity = identity;
         this.publicKey = publicKey;
         this.handle = handle;
         this.pk = parsePublicKey(publicKey);
+
+        // Assign signing keys. These keys are used for signing the tag stored in Nimble.
+        KeyFactory kf = KeyFactory.getInstance("EC");
+        if (signPublicKey != null)
+            this.signPublicKey = kf.generatePublic(new X509EncodedKeySpec(signPublicKey));
+        if (signPrivateKey != null)
+            this.signPrivateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(signPrivateKey));
     }
 
     public NimbleServiceID(String identity, String publicKey, String handle) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
-        this(NimbleUtils.URLDecode(identity), NimbleUtils.URLDecode(publicKey), null);
+        this(NimbleUtils.URLDecode(identity), NimbleUtils.URLDecode(publicKey), null, null, null);
+        if (handle != null) {
+            this.handle = NimbleUtils.URLDecode(handle);
+        }
+    }
+
+    public NimbleServiceID(String identity, String publicKey, String handle, String signPublicKey, String signPrivateKey)
+            throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
+        this(NimbleUtils.URLDecode(identity), NimbleUtils.URLDecode(publicKey), null, null, null);
         if (handle != null) {
             this.handle = NimbleUtils.URLDecode(handle);
         }
@@ -36,11 +58,61 @@ public final class NimbleServiceID {
 
     @Override
     public String toString() {
+        String pub = (this.signPublicKey != null) ? NimbleUtils.URLEncode(signPublicKey.getEncoded()) : "null";
+        String priv = (this.signPrivateKey != null) ? NimbleUtils.URLEncode(signPrivateKey.getEncoded()) : "null";
+
         return "NimbleServiceID{" +
                 "identity=" + NimbleUtils.URLEncode(identity) +
                 ", publicKey=" + NimbleUtils.URLEncode(publicKey) +
                 ", handle=" + NimbleUtils.URLEncode(handle) +
+                ", signPublicKey=" + pub +
+                ", signPrivateKey=" + priv +
                 '}';
+    }
+
+    public void generateSigningKeys() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
+        // Init
+        KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("EC");
+        keyPairGen.initialize(new ECGenParameterSpec(SIGN_SPEC), new SecureRandom());
+
+        // Generate
+        KeyPair pair = keyPairGen.generateKeyPair();
+        this.signPublicKey = pair.getPublic();
+        this.signPrivateKey = pair.getPrivate();
+    }
+
+    public byte[] signTag(byte[] tag) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, NimbleError {
+        if (this.signPrivateKey == null)
+            throw new NimbleError("Private key for signing is not set");
+
+        // Sign
+        Signature ecdsa = Signature.getInstance(SIGN_ALGO);
+        ecdsa.initSign(this.signPrivateKey);
+        ecdsa.update(tag);
+        return ecdsa.sign();
+    }
+
+    public boolean verifyTag(byte[] signature, byte[] tag) throws NimbleError, SignatureException, NoSuchAlgorithmException, InvalidKeyException {
+        if (this.signPublicKey == null)
+            throw new NimbleError("Public key for signing is not set");
+
+        // Verify
+        Signature sg = Signature.getInstance(SIGN_ALGO);
+        sg.initVerify(signPublicKey);
+        sg.update(tag);
+        return sg.verify(signature);
+    }
+
+    public boolean canSign() {
+        return signPrivateKey != null && signPublicKey != null;
+    }
+
+    public byte[] getSignPublicKey() {
+        return signPublicKey.getEncoded();
+    }
+
+    public byte[] getSignPrivateKey() {
+        return signPrivateKey.getEncoded();
     }
 
     public boolean equals(NimbleServiceID other) {

@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.*;
 import java.util.*;
@@ -21,11 +22,12 @@ public class NimbleTester {
     static Logger logger = Logger.getLogger(NimbleTester.class);
 
     /* For development and testing only */
-    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, InvalidKeySpecException, SignatureException, InvalidParameterSpecException, DecoderException, URISyntaxException {
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, InvalidKeySpecException, SignatureException, InvalidParameterSpecException, DecoderException, URISyntaxException, InvalidAlgorithmParameterException {
         logger.setLevel(Level.DEBUG);
         logger.debug("Run Nimble workflow for testing");
         Configuration conf = new Configuration();
 
+        keyPairTest();
         try (NimbleAPI n = new NimbleAPI(conf)) {
             test_workflow(n);
         }
@@ -68,6 +70,63 @@ public class NimbleTester {
         assert op.counter == 2;
 
         logger.info("Successfully tested TMCS");
+    }
+
+    /**
+     * https://stackoverflow.com/a/11353993
+     * https://metamug.com/article/security/sign-verify-digital-signature-ecdsa-java.html
+     */
+    public static void keyPairTest() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, SignatureException, InvalidKeySpecException {
+        final String SPEC = "secp256k1";
+        final String ALGO = "SHA256withECDSA";
+        final String msg = "Some random plaintext.";
+
+        // Init
+        KeyPairGenerator keyPairGen = KeyPairGenerator.getInstance("EC");
+        keyPairGen.initialize(new ECGenParameterSpec(SPEC), new SecureRandom());
+
+        // Generate
+        KeyPair pair = keyPairGen.generateKeyPair();
+        PublicKey pub = pair.getPublic();
+        PrivateKey priv = pair.getPrivate();
+        logger.info("Public: " + NimbleUtils.URLEncode(pub.getEncoded()) + " format=" + pub.getFormat()
+                + " algo=" + pub.getAlgorithm());
+        logger.info("Private: " + NimbleUtils.URLEncode(priv.getEncoded()) + " format=" + priv.getFormat()
+                + " algo=" + priv.getAlgorithm());
+
+        // Sign
+        Signature ecdsa = Signature.getInstance(ALGO);
+        ecdsa.initSign(priv);
+        ecdsa.update(msg.getBytes(StandardCharsets.UTF_8));
+        byte sign[] = ecdsa.sign();
+        logger.info("Signature ("+ sign.length +"): " + NimbleUtils.URLEncode(sign));
+        logger.info("Message: " + msg);
+
+        // Parse Keys
+        EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(pub.getEncoded());
+        EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(priv.getEncoded());
+        KeyFactory kf = KeyFactory.getInstance("EC");
+
+        PublicKey genPublicKey = kf.generatePublic(publicKeySpec);
+        PrivateKey genPrivateKey = kf.generatePrivate(privateKeySpec);
+        logger.info("Public: " + NimbleUtils.URLEncode(genPublicKey.getEncoded()) + " format=" + genPublicKey.getFormat()
+                + " algo=" + genPublicKey.getAlgorithm());
+        logger.info("Private (load): " + NimbleUtils.URLEncode(genPrivateKey.getEncoded()) + " format=" + genPrivateKey.getFormat()
+                + " algo=" + genPrivateKey.getAlgorithm());
+        logger.info("Compare Private key: generated == loaded is " + Arrays.equals(priv.getEncoded(), genPrivateKey.getEncoded()));
+
+        // Verify Signature w/ loaded public key
+        Signature sg = Signature.getInstance(ALGO);
+        sg.initVerify(genPublicKey);
+        sg.update(msg.getBytes(StandardCharsets.UTF_8));
+        logger.info("Verify signature w/ loaded public key: " + sg.verify(sign));
+
+        // Re-Sign w/ loaded private key
+        Signature ecdsaLoaded = Signature.getInstance(ALGO);
+        ecdsaLoaded.initSign(genPrivateKey);
+        ecdsaLoaded.update(msg.getBytes(StandardCharsets.UTF_8));
+        byte signLoad[] = ecdsaLoaded.sign();
+        logger.info("Signature ("+ sign.length +"): " + NimbleUtils.URLEncode(signLoad));
     }
 
     /**
@@ -148,7 +207,7 @@ public class NimbleTester {
         System.arraycopy(r_b, 0, sig_b, 0, r_b.length);
         System.arraycopy(s_b, 0, sig_b, r_b.length, s_b.length);
 
-        NimbleServiceID service = new NimbleServiceID(new byte[]{}, pk_b, null);
+        NimbleServiceID service = new NimbleServiceID(new byte[]{}, pk_b, null, null, null);
         logger.info(service);
         boolean signature = service.verifySignature(sig_b, m_b);
         logger.info("Signature: " + signature);
@@ -167,7 +226,7 @@ public class NimbleTester {
                sig = NimbleUtils.URLDecode(sigStr);
 
         // Mock service ID and create verify signature
-        NimbleServiceID service = new NimbleServiceID(new byte[]{}, pk, null);
+        NimbleServiceID service = new NimbleServiceID(new byte[]{}, pk, null, null, null);
         logger.info(service);
         boolean signature = service.verifySignature(sig, msg);
         logger.info("Verification Result: " + signature);

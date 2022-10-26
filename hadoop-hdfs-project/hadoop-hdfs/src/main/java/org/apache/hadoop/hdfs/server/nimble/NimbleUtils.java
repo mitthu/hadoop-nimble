@@ -143,7 +143,9 @@ public class NimbleUtils {
         return new NimbleServiceID(
                 props.getProperty("identity", ""),
                 props.getProperty("publicKey", ""),
-                props.getProperty("handle")
+                props.getProperty("handle"),
+                props.getProperty("signPublicKey"),
+                props.getProperty("signPrivateKey")
         );
     }
 
@@ -153,10 +155,22 @@ public class NimbleUtils {
             return;
         }
 
+        try {
+            if (!id.canSign()) {
+                logger.info("generating signing keys for Nimble");
+                id.generateSigningKeys();
+            }
+        } catch (Exception e) {
+            logger.error("cannot generate signing keys: " + e);
+            throw new NimbleError("cannot generate signing keys");
+        }
+
         Properties props = new Properties();
         props.setProperty("identity", URLEncode(id.identity));
         props.setProperty("publicKey", URLEncode(id.publicKey));
         props.setProperty("handle", URLEncode(id.handle));
+        props.setProperty("signPublicKey", URLEncode(id.getSignPublicKey()));
+        props.setProperty("signPrivateKey", URLEncode(id.getSignPrivateKey()));
         // add local signing keys to "this", or "another file"? (actually stored in Azure Key Vault)
         Storage.writeProperties(nimble_info, props);
     }
