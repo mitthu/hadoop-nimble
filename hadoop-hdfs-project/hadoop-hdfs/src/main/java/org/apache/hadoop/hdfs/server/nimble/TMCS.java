@@ -46,7 +46,9 @@ public class TMCS implements Closeable {
      * Only to be used while formatting
      */
     private TMCS(Configuration conf) {
-        this.api = new NimbleAPI(new Configuration());
+        if (conf == null)
+            conf = new Configuration();
+        this.api = new NimbleAPI(conf);
     }
 
     @Override
