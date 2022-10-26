@@ -269,7 +269,7 @@ public class FSEditLog implements LogsPurgeable {
       return;
     File f = storage.getHighestFsImageName();
     LOG.info("Base editLogs off: " + f);
-    this.tmcsEdits = new TMCSEditLog(true, f);
+    this.tmcsEdits = new TMCSEditLog(conf, true, f);
   }
 
   public synchronized void initJournalsForWrite() {

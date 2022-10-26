@@ -1,5 +1,6 @@
 package org.apache.hadoop.hdfs.server.nimble;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeLayoutVersion;
 import org.apache.log4j.Logger;
@@ -19,7 +20,7 @@ import java.util.Arrays;
 public class TMCSEditLog {
     static Logger logger = Logger.getLogger(TMCS.class);
 
-    final public static int AGGREGATE_FREQUENCY = 2; // TODO: change to 100
+    public long aggregateFrequency;
 
     private NimbleUtils.NimbleFSImageInfo fsImage; // base image for all operations
     private boolean apply; // false means don't increment to TMCS (we're verifying)
@@ -27,19 +28,22 @@ public class TMCSEditLog {
     private byte[] tag, previousTag;
     private MessageDigest    md;
     private DataOutputStream out; // writes used to compute checksum
+    Configuration conf;
 
     public static class NullOutputStream extends OutputStream {
         public void write(int b) throws IOException {}
         public void write(byte[] var1, int var2, int var3) throws IOException {}
     }
 
-    public TMCSEditLog(boolean apply, File fsImageFile) throws IOException {
-        this(apply, NimbleUtils.getFSImageInfo(fsImageFile));
+    public TMCSEditLog(Configuration conf, boolean apply, File fsImageFile) throws IOException {
+        this(conf, apply, NimbleUtils.getFSImageInfo(fsImageFile));
     }
 
-    public TMCSEditLog(boolean apply, NimbleUtils.NimbleFSImageInfo fsImage) throws IOException {
+    public TMCSEditLog(Configuration conf, boolean apply, NimbleUtils.NimbleFSImageInfo fsImage) throws IOException {
+        this.conf = conf;
         this.apply = apply;
         this.fsImage = fsImage;
+        this.aggregateFrequency = conf.getLong(NimbleUtils.NIMBLE_AGGREGATE_FREQUENCY_KEY, NimbleUtils.NIMBLE_AGGREGATE_FREQUENCY_DEFAULT);
 
         this.num = 0;
         this.nextCounter = fsImage.counter;
@@ -90,7 +94,7 @@ public class TMCSEditLog {
             op.writeFields(out, NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION); // Fields
             num++;
             logger.debug(String.format("record: opcode=%X %s", op.opCode.getOpCode(), op));
-            if (num >= AGGREGATE_FREQUENCY) // OR a specialLogSegmentOp [opCode=OP_START_LOG_SEGMENT, txid=8 op
+            if (num >= aggregateFrequency) // OR a specialLogSegmentOp [opCode=OP_START_LOG_SEGMENT, txid=8 op
                 finalizeBatch();
 
             // only works when AGGREGATE_FREQUENCY=1

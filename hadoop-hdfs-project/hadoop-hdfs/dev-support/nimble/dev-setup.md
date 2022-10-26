@@ -64,6 +64,10 @@ echo "\
 		<name>fs.nimbleURI</name>
 		<value>http://localhost:8082/</value>
 	</property>
+	<property>
+		<name>fs.nimble.aggregateFrequency</name>
+		<value>2</value>
+	</property>
 </configuration>
 " >/opt/hadoop-3.3.3/etc/hadoop/core-site.xml
 ```
@@ -118,6 +122,10 @@ echo "\
 	<property>
 		<name>fs.nimbleURI</name>
 		<value>http://localhost:8082/</value>
+	</property>
+	<property>
+		<name>fs.nimble.aggregateFrequency</name>
+		<value>2</value>
 	</property>
 	<property>
 		<name>dfs.namenode.fs-limits.min-block-size</name>

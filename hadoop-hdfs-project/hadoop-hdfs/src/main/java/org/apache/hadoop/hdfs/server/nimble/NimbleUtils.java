@@ -25,8 +25,12 @@ import java.util.Properties;
 public class NimbleUtils {
     static Logger logger = Logger.getLogger(NimbleUtils.class);
 
+    // URL of NimbleLedger's REST endpoint
     public static final String NIMBLEURI_KEY            = "fs.nimbleURI";
     public static final String NIMBLEURI_DEFAULT        = "http://localhost:8082/";
+    // Number of EditLog operations to batch
+    public static final String NIMBLE_AGGREGATE_FREQUENCY_KEY    = "fs.nimble.aggregateFrequency";
+    public static final long NIMBLE_AGGREGATE_FREQUENCY_DEFAULT  = 2;
     public static final String NIMBLE_INFO              = "NIMBLE";
     public static final String NIMBLE_FSIMAGE_EXTENSION = ".nimble";
     public static final boolean READABLE_LOG_OPERATIONS = true;
