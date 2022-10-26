@@ -1286,8 +1286,7 @@ public class FSImage implements Closeable {
         throw new NimbleError(m);
       }
 
-      // This goes out of sync w/ TMCSEditLog. Hence, we reread the state in finalizeBatch().
-      // TODO: An optimization would be to set a "stale" flag on TMCS. If set only then we reread the state from Nimble.
+      // Record new image creation with Nimble
       if (this.getEditLog().getTMCSEdits() != null) { // is null when formatting filesystem
         LOG.info("Updating NimbleLedger via TMCSEditLog");
         this.getEditLog().getTMCSEdits().recordImage(info.tag);

@@ -62,8 +62,6 @@ public class TMCSEditLog {
 
     // Send data to EditLogs
     private void finalizeBatch() throws IOException {
-        if (apply)
-            reloadState();
         md.update(String.valueOf(nextCounter).getBytes(StandardCharsets.UTF_8));
         // Based on our discussions, tracking previousTag is not needed.
         // md.update(previousTag);
