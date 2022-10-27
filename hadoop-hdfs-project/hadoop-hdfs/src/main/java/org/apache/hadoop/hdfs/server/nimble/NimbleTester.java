@@ -101,6 +101,12 @@ public class NimbleTester {
         byte sign[] = ecdsa.sign();
         logger.info("Signature ("+ sign.length +"): " + NimbleUtils.URLEncode(sign));
         logger.info("Message: " + msg);
+        ecdsa = Signature.getInstance(ALGO);
+        ecdsa.initSign(priv);
+        ecdsa.update(msg.getBytes(StandardCharsets.UTF_8));
+        sign = ecdsa.sign();
+        logger.info("Again Signature ("+ sign.length +"): " + NimbleUtils.URLEncode(sign));
+        logger.info("Again Message: " + msg);
 
         // Parse Keys
         EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(pub.getEncoded());

@@ -8,6 +8,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.security.Signature;
 
 public class TMCS implements Closeable {
     static Logger logger = Logger.getLogger(TMCS.class);
@@ -21,6 +22,7 @@ public class TMCS implements Closeable {
         api = new NimbleAPI(new Configuration());
         try {
             id = NimbleUtils.loadAndValidateNimbleInfo(api);
+            logger.info("Loaded Nimble info: " + id);
         } catch (Exception e) {
             logger.error("cannot load/create nimble metadata");
             e.printStackTrace();
@@ -79,7 +81,8 @@ public class TMCS implements Closeable {
         try {
             instance.id = instance.api.getServiceID();
             instance.id.handle = NimbleUtils.getNonce();
-            // newCounter whose tag=[hostname]
+            instance.id.generateSigningKeys();
+            // newCounter whose tag=[hostname]. We don't sign it because it is not used.
             instance._initialize(InetAddress.getLocalHost().getHostName().getBytes(StandardCharsets.UTF_8));
             logger.info("Formatted TMCS: " + instance.id);
         } catch (Exception e) {
@@ -116,6 +119,14 @@ public class TMCS implements Closeable {
 
     public synchronized void initialize(byte[] tag) throws IOException {
         _initialize(tag);
+    }
+
+    public Signature getSignature() throws NimbleError {
+        return id.getSignature();
+    }
+
+    public Signature verifySignature() throws NimbleError {
+        return id.verifySignature();
     }
 
     public synchronized void increment(byte[] tag) throws IOException {

@@ -141,10 +141,10 @@ public class TMCSEditLog {
         else if ((nextCounter-1) != latest.counter)
             throw new NimbleError(String.format("Incorrect Counter: expecting=%d got=%d",
                     (nextCounter-1), latest.counter));
+
         // TODO: Verify signature
 
-        logger.info("State verified (calculated): " + this);
-        logger.info("State verified (via TMCS): " + latest);
+        logger.debug("State verified (calculated): " + this);
     }
 
     /**

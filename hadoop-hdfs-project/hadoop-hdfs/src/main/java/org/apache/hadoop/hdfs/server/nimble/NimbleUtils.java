@@ -10,11 +10,9 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import java.io.*;
-import java.lang.reflect.Array;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.util.Arrays;
@@ -169,9 +167,9 @@ public class NimbleUtils {
         props.setProperty("identity", URLEncode(id.identity));
         props.setProperty("publicKey", URLEncode(id.publicKey));
         props.setProperty("handle", URLEncode(id.handle));
+        // TODO: Store in Azure Key Vault
         props.setProperty("signPublicKey", URLEncode(id.getSignPublicKey()));
         props.setProperty("signPrivateKey", URLEncode(id.getSignPrivateKey()));
-        // add local signing keys to "this", or "another file"? (actually stored in Azure Key Vault)
         Storage.writeProperties(nimble_info, props);
     }
 
@@ -184,6 +182,7 @@ public class NimbleUtils {
         TMCS tmcs = TMCS.getInstance();
         byte[] digest = NimbleUtils.checksum(fsimage);
         byte[] tag = getTagForFSImage(digest, tmcs.expectedCounter());
+        logger.info("Signed tag for FSImage: " + URLEncode(tag));
 
         props.setProperty("sha256sum-fsimage", URLEncode(digest));
         props.setProperty("counter", String.valueOf(tmcs.expectedCounter()));
@@ -225,25 +224,13 @@ public class NimbleUtils {
         if (!Arrays.equals(digest_curr, digest_saved))
             throw new NimbleError("Saved & current checksums do not match");
 
-        // TODO: Verify signature
-        byte[] tag_computed = getTagForFSImage(digest_curr, counter_saved);
-        if (!Arrays.equals(tag_saved, tag_computed))
-            throw new NimbleError("Saved & current tags do not match");
-
         return new NimbleFSImageInfo(counter_saved, digest_saved, tag_saved);
     }
 
-    public static void verifyFSImageInfo(File fsImage) throws IOException {
-        NimbleUtils.NimbleFSImageInfo info = NimbleUtils.getFSImageInfo(fsImage);
-        byte[] digest = checksum(fsImage);
-
-        if (!Arrays.equals(info.digest, digest))
-            throw new NimbleError("Image file " + fsImage +
-                    " is corrupt with SHA256 checksum of " + URLEncode(digest) +
-                    " but expecting " + URLEncode(info.digest));
-
-        // TODO: Verify signature
-        logger.info("FSImage verified!");
+    public static boolean verifyFSImageInfo(File fsImage) throws IOException {
+        // The following also verifies the signature on FSImage's tag
+        NimbleFSImageInfo info = NimbleUtils.getFSImageInfo(fsImage);
+        return verifyTagForFSImage(info.tag, info.digest, info.counter);
     }
 
     public static void renameFSImageInfo(File from, File to) throws IOException {
@@ -258,11 +245,23 @@ public class NimbleUtils {
     }
 
     public static byte[] getTagForFSImage(byte[] digest, int counter) throws IOException {
-        MessageDigest md = _checksum();
-        md.update(digest);
-        md.update(String.valueOf(counter).getBytes(StandardCharsets.UTF_8));
-        // TODO: Sign it! tag=sk<sha256sum|counter>
-        return md.digest();
+        try {
+            Signature tag = TMCS.getInstance().getSignature();
+            tag.update(InetAddress.getLocalHost().getHostName().getBytes(StandardCharsets.UTF_8));
+            return tag.sign();
+        } catch (SignatureException e) {
+            throw new NimbleError("Cannot compute signature: " + e);
+        }
+    }
+
+    public static boolean verifyTagForFSImage(byte[] tag, byte[] digest, int counter) throws IOException {
+        try {
+            Signature vTag = TMCS.getInstance().verifySignature();
+            vTag.update(InetAddress.getLocalHost().getHostName().getBytes(StandardCharsets.UTF_8));
+            return vTag.verify(tag);
+        } catch (SignatureException e) {
+            throw new NimbleError("Cannot compute signature: " + e);
+        }
     }
 
     public static byte[] getNonce() {

@@ -984,7 +984,10 @@ public class FSImage implements Closeable {
     }
 
     // Verify NimbleFSImageInfo
-    NimbleUtils.verifyFSImageInfo(curFile);
+    if (!NimbleUtils.verifyFSImageInfo(curFile))
+      throw new NimbleError("Verification failed for FSImage: " + curFile);
+    else
+      LOG.info("Verified signature of FSImage");
 
     long txId = loader.getLoadedImageTxId();
     LOG.info("Loaded image for txid " + txId + " from " + curFile);

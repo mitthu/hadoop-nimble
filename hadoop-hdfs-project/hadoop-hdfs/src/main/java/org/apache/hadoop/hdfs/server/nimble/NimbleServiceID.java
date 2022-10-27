@@ -50,7 +50,8 @@ public final class NimbleServiceID {
 
     public NimbleServiceID(String identity, String publicKey, String handle, String signPublicKey, String signPrivateKey)
             throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException {
-        this(NimbleUtils.URLDecode(identity), NimbleUtils.URLDecode(publicKey), null, null, null);
+        this(NimbleUtils.URLDecode(identity), NimbleUtils.URLDecode(publicKey), null,
+             NimbleUtils.URLDecode(signPublicKey), NimbleUtils.URLDecode(signPrivateKey));
         if (handle != null) {
             this.handle = NimbleUtils.URLDecode(handle);
         }
@@ -81,26 +82,30 @@ public final class NimbleServiceID {
         this.signPrivateKey = pair.getPrivate();
     }
 
-    public byte[] signTag(byte[] tag) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, NimbleError {
+    public Signature getSignature() throws NimbleError {
         if (this.signPrivateKey == null)
             throw new NimbleError("Private key for signing is not set");
 
-        // Sign
-        Signature ecdsa = Signature.getInstance(SIGN_ALGO);
-        ecdsa.initSign(this.signPrivateKey);
-        ecdsa.update(tag);
-        return ecdsa.sign();
+        try {
+            Signature ecdsa = Signature.getInstance(SIGN_ALGO);
+            ecdsa.initSign(this.signPrivateKey);
+            return ecdsa;
+        } catch (Exception e) {
+            throw new NimbleError("Cannot sign message: " + e);
+        }
     }
 
-    public boolean verifyTag(byte[] signature, byte[] tag) throws NimbleError, SignatureException, NoSuchAlgorithmException, InvalidKeyException {
+    public Signature verifySignature() throws NimbleError {
         if (this.signPublicKey == null)
             throw new NimbleError("Public key for signing is not set");
 
-        // Verify
-        Signature sg = Signature.getInstance(SIGN_ALGO);
-        sg.initVerify(signPublicKey);
-        sg.update(tag);
-        return sg.verify(signature);
+        try {
+            Signature sg = Signature.getInstance(SIGN_ALGO);
+            sg.initVerify(signPublicKey);
+            return sg;
+        } catch (Exception e) {
+            throw new NimbleError("Cannot verify signature on tag: " + e);
+        }
     }
 
     public boolean canSign() {
