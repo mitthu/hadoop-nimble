@@ -775,7 +775,6 @@ public class FSImage implements Closeable {
       rollingRollback(lastAppliedTxId + 1, imageFiles.get(0).getCheckpointTxId());
       needToSave = false;
     }
-    editLog.getTMCSEdits().verifyState();
     editLog.setNextTxId(lastAppliedTxId + 1);
     return needToSave;
   }
@@ -902,8 +901,8 @@ public class FSImage implements Closeable {
 
     long prevLastAppliedTxId = lastAppliedTxId;
     long remainingReadTxns = maxTxnsToRead;
-    getEditLog().ensureTMCSEditsIsInitialized();
-    getEditLog().getTMCSEdits().loadMode();
+    editLog.ensureTMCSEditsIsInitialized();
+    editLog.getTMCSEdits().loadMode();
     try {
       FSEditLogLoader loader = new FSEditLogLoader(target, lastAppliedTxId);
       
@@ -938,7 +937,8 @@ public class FSImage implements Closeable {
       }
     } finally {
       FSEditLog.closeAllStreams(editStreams);
-      getEditLog().getTMCSEdits().liveMode();
+      editLog.getTMCSEdits().verifyState();
+      editLog.getTMCSEdits().liveMode();
     }
     return lastAppliedTxId - prevLastAppliedTxId;
   }

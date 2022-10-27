@@ -6,10 +6,8 @@ import org.apache.hadoop.hdfs.server.namenode.NameNodeLayoutVersion;
 import org.apache.log4j.Logger;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.security.DigestOutputStream;
-import java.security.MessageDigest;
-import java.util.Arrays;
+import java.security.Signature;
+import java.security.SignatureException;
 
 /**
  * We aggregate EditLog ops for fixed number, or till we encounter the special NimbleOp (or just flush?).
@@ -20,19 +18,56 @@ import java.util.Arrays;
 public class TMCSEditLog {
     static Logger logger = Logger.getLogger(TMCS.class);
 
-    public long aggregateFrequency;
-
+    private Configuration conf;
+    private long aggregateFrequency;
     private NimbleUtils.NimbleFSImageInfo fsImage; // base image for all operations
     private boolean apply; // false means don't increment to TMCS (we're verifying)
     private int num, nextCounter;
-    private byte[] tag, previousTag;
-    private MessageDigest    md;
-    private DataOutputStream out; // writes used to compute checksum
-    Configuration conf;
+    private SignatureOutputStream tag, previousTag;
+    private DataOutputStream out; // wrapper for tag
+    private TMCS tmcs;
 
-    public static class NullOutputStream extends OutputStream {
-        public void write(int b) throws IOException {}
-        public void write(byte[] var1, int var2, int var3) throws IOException {}
+    public static class SignatureOutputStream extends OutputStream {
+        protected Signature s, v;
+        protected boolean doVerify;
+
+        public SignatureOutputStream(Signature sign, Signature verify) {
+            this.s = sign;
+            this.v = verify;
+            this.doVerify = false;
+        }
+
+        public void setVerify(boolean b) {
+            this.doVerify = b;
+        }
+
+        public boolean verify(byte[] signature) throws IOException {
+            try {
+                return v.verify(signature);
+            } catch (SignatureException e) { throw new NimbleError(e); }
+        }
+
+        public byte[] sign() throws IOException {
+            try {
+                return s.sign();
+            } catch (SignatureException e) { throw new NimbleError(e); }
+        }
+
+        public void write(int b) throws IOException {
+            try{
+                s.update((byte) b);
+                if (doVerify)
+                    v.update((byte) b);
+            } catch (SignatureException e) { throw new NimbleError(e); }
+        }
+
+        public void write(byte[] var1, int var2, int var3) throws IOException {
+            try{
+                s.update(var1, var2, var3);
+                if (doVerify)
+                    v.update(var1, var2, var3);
+            } catch (SignatureException e) { throw new NimbleError(e); }
+        }
     }
 
     public TMCSEditLog(Configuration conf, boolean apply, File fsImageFile) throws IOException {
@@ -47,34 +82,31 @@ public class TMCSEditLog {
 
         this.num = 0;
         this.nextCounter = fsImage.counter;
-        this.tag = fsImage.tag;
+        this.previousTag = null;
+        this.tmcs = TMCS.getInstance();
+        this.tag = new SignatureOutputStream(tmcs.getSignature(), tmcs.verifySignature());
+        this.out = new DataOutputStream(this.tag);
 
         prepareNextBatch();
     }
 
     private void prepareNextBatch() throws IOException {
-        previousTag = tag;
         nextCounter++;
         num = 0;
 
         // Build tag
-        md = NimbleUtils._checksum();
-        out = new DataOutputStream(
-                new DigestOutputStream(new NullOutputStream(), md)
-        );
+        tag = new SignatureOutputStream(tmcs.getSignature(), tmcs.verifySignature());
     }
 
     // Send data to EditLogs
     private void finalizeBatch() throws IOException {
-        md.update(String.valueOf(nextCounter).getBytes(StandardCharsets.UTF_8));
-        // Based on our discussions, tracking previousTag is not needed.
-        // md.update(previousTag);
+        // Write counter after ops
+        out.writeInt(nextCounter);
 
-        byte[] digest = md.digest();
-        tag = digest; // TODO: Sign this!
+        // Update TMCS
+        this.previousTag = tag;
         if (apply) {
-            TMCS.getInstance().increment(tag);
-            logger.info(TMCS.getInstance().latest());
+            tmcs.increment(tag.sign());
         }
 
         // Prepare for next batch
@@ -87,8 +119,8 @@ public class TMCSEditLog {
     public synchronized void add(FSEditLogOp op) throws IOException {
         try {
             // only works when AGGREGATE_FREQUENCY=1
-            logger.debug(String.format("apply (before): op=%s opcode=%X counter=%d tag=%s",
-                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
+//            logger.debug(String.format("apply (before): op=%s opcode=%X counter=%d tag=%s",
+//                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
 
             out.write(op.opCode.getOpCode()); // OPCODE
             op.writeFields(out, NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION); // Fields
@@ -98,10 +130,10 @@ public class TMCSEditLog {
                 finalizeBatch();
 
             // only works when AGGREGATE_FREQUENCY=1
-            logger.debug(String.format("apply (after): op=%s opcode=%X counter=%d tag=%s",
-                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
+//            logger.debug(String.format("apply (after): op=%s opcode=%X counter=%d tag=%s",
+//                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
         } catch (IOException e) {
-            logger.error(e);
+            logger.error(e); // Else some errors go unnoticed
             throw e;
         }
     }
@@ -123,73 +155,70 @@ public class TMCSEditLog {
         if (num > 0)
             throw new NimbleError(num + " edit log operations are still not flushed");
 
-        // Record new FSImage creation
-        TMCS.getInstance().increment(tag);
+        // Record new FSImage creation. Expects a signed tag.
+        tmcs.increment(tag);
 
         // Update bookkeeping
-        previousTag = tag;
         nextCounter++;
     }
 
-    public synchronized void verifyState() throws IOException {
-        NimbleOpReadLatest latest = TMCS.getInstance().latest();
-        // ensure tag, counter & signature are correct
-
-        if (!Arrays.equals(previousTag, latest.tag))
-            throw new NimbleError(String.format("Incorrect Tag: expecting=%s got=%s",
-                    NimbleUtils.URLEncode(previousTag), NimbleUtils.URLEncode(latest.tag)));
-        else if ((nextCounter-1) != latest.counter)
-            throw new NimbleError(String.format("Incorrect Counter: expecting=%d got=%d",
-                    (nextCounter-1), latest.counter));
-
-        // TODO: Verify signature
-
-        logger.debug("State verified (calculated): " + this);
-    }
-
     /**
-     * Update internal state from Nimble
+     * Should be called before invoking liveMode().
      */
-    private void reloadState() throws IOException {
-        NimbleOpReadLatest latest = TMCS.getInstance().latest();
-        // ensure tag, counter & signature are correct
+    public synchronized void verifyState() throws IOException {
+        NimbleOpReadLatest latest = tmcs.latest();
 
-        if (!Arrays.equals(previousTag, latest.tag)) {
-            logger.info(String.format("Stale state: Incorrect Tag: expecting=%s got=%s",
-                    NimbleUtils.URLEncode(previousTag), NimbleUtils.URLEncode(latest.tag)));
-            logger.info(String.format("State state: Counter: nextCounter=%d got=%d",
-                    nextCounter, latest.counter));
-            previousTag = latest.tag;
+        // Sanity checks
+        if ((nextCounter-1) != latest.counter)
+            throw new NimbleError(String.format("Incorrect Counter: expecting=%d got=%d", (nextCounter-1), latest.counter));
+
+        if (num > 0) {
+            // TODO: Implement a flush op to force flush the batch. This should be invoked when shutting down the NN.
+            logger.warn("No custom flush op is implemented!");
+            logger.warn("the last " + num + " ops will not be verified. This is likely due to unclean shutdown.");
         }
-        if ((nextCounter-1) != latest.counter) {
-            logger.info(String.format("State state: Incorrect Counter: expecting=%d got=%d",
-                    (nextCounter - 1), latest.counter));
-            nextCounter = latest.counter + 1;
+
+        if (previousTag == null) {
+            logger.warn("No edit log ops to verify");
+            return;
         }
-        // TODO: Verify signature
+
+        // Verify signature. The current tag is empty if all ops were committed before shutdown.
+        if(!previousTag.verify(latest.tag))
+            throw new NimbleError("Cannot verify signature on tag");
+
+        logger.debug("State verified: " + latest);
     }
 
     /**
      * When loading existing EditLogs from disk
      */
-    public synchronized void loadMode() {
+    public synchronized void loadMode() throws IOError {
         logger.info("DO NOT APPLY mode: " + this);
         this.apply = false;
+        this.tag.setVerify(true);
     }
 
     /**
      * When writing to EditLogs
      */
-    public synchronized void liveMode() {
+    public synchronized void liveMode() throws NimbleError {
         logger.info("LIVE mode: " + this);
         this.apply = true;
+        this.tag.setVerify(false);
     }
 
     @Override
     public String toString() {
+        byte[] tagArr;
+        try {
+            tagArr = tag.sign();
+        } catch (IOException e) {
+            tagArr = null;
+        }
         return "TMCSEditLog{" +
                 "counter=" + (nextCounter-1) +
-                ", tag=" + NimbleUtils.URLEncode(tag) +
+                ", tag=" + tagArr +
                 '}';
     }
 }
