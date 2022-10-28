@@ -3,6 +3,7 @@ package org.apache.hadoop.hdfs.server.nimble;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
 /* Captures responses */
@@ -33,6 +34,8 @@ abstract class NimbleOp {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         } catch (NoSuchProviderException e) {
+            e.printStackTrace();
+        } catch (InvalidKeySpecException e) {
             e.printStackTrace();
         }
         return false;

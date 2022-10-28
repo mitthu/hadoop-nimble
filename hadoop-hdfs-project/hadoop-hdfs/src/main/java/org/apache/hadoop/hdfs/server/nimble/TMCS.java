@@ -26,7 +26,7 @@ public class TMCS implements Closeable {
         } catch (Exception e) {
             logger.error("cannot load/create nimble metadata");
             e.printStackTrace();
-            throw new NimbleError("cannot load/create nimble metadata");
+            throw new NimbleError("cannot load/create nimble metadata: " + e);
         }
 
         assert id.handle != null;

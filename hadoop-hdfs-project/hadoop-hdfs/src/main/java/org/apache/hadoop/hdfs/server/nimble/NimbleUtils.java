@@ -22,6 +22,14 @@ import java.util.Properties;
 /* Store & load configuration */
 public class NimbleUtils {
     static Logger logger = Logger.getLogger(NimbleUtils.class);
+    public static class Conf {
+        public static final String SERVICE_IDENTITY_KEY      = "fs.nimble.service.id";
+        public static final String SERVICE_IDENTITY_DEFAULT  = "";
+        public static final String SERVICE_PUBLIC_KEY_KEY    = "fs.nimble.service.publickey";
+        public static final String SERVICE_PUBLIC_KEY_DEFAULT= "";
+        public static final String SERVICE_HANDLE_KEY        = "fs.nimble.service.handle";
+        public static final String SERVICE_HANDLE_DEFAULT    = null;
+    }
 
     // URL of NimbleLedger's REST endpoint
     public static final String NIMBLEURI_KEY            = "fs.nimbleURI";
@@ -95,7 +103,7 @@ public class NimbleUtils {
             for (Iterator<Storage.StorageDirectory> it = storage.dirIterator(); it.hasNext(); ) {
                 Storage.StorageDirectory sd = it.next();
                 if (first == null) {
-                    first = loadNimbleInfo(sd);
+                    first = loadNimbleInfo(conf, sd);
                     break;
                 }
             }
@@ -103,7 +111,7 @@ public class NimbleUtils {
             // Verify all other IDs are equal
             for (Iterator<Storage.StorageDirectory> it = storage.dirIterator(); it.hasNext(); ) {
                 Storage.StorageDirectory sd = it.next();
-                other = loadNimbleInfo(sd);
+                other = loadNimbleInfo(conf, sd);
 
                 if (!first.equals(other)) {
                     logger.error(String.format("unexpected: %s != %s", first, other));
@@ -132,19 +140,34 @@ public class NimbleUtils {
         }
     }
 
-    public static NimbleServiceID loadNimbleInfo(Storage.StorageDirectory sd) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException {
+    public static NimbleServiceID loadNimbleInfo(Configuration conf, Storage.StorageDirectory sd) throws IOException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException {
         if (sd == null || sd.getRoot() == null) {
             return null;
         }
 
         Properties props = Storage.readPropertiesFile(getNimbleInfo(sd));
-        return new NimbleServiceID(
-                props.getProperty("identity", ""),
-                props.getProperty("publicKey", ""),
-                props.getProperty("handle"),
+        NimbleServiceID fsID = new NimbleServiceID(
+                props.getProperty("identity", Conf.SERVICE_IDENTITY_DEFAULT),
+                props.getProperty("publicKey", Conf.SERVICE_PUBLIC_KEY_DEFAULT),
+                props.getProperty("handle", Conf.SERVICE_HANDLE_DEFAULT),
                 props.getProperty("signPublicKey"),
                 props.getProperty("signPrivateKey")
         );
+
+        NimbleServiceID confID = new NimbleServiceID(
+                conf.get(Conf.SERVICE_IDENTITY_KEY, Conf.SERVICE_IDENTITY_DEFAULT),
+                conf.get(Conf.SERVICE_PUBLIC_KEY_KEY, Conf.SERVICE_PUBLIC_KEY_DEFAULT),
+                conf.get(Conf.SERVICE_HANDLE_KEY, Conf.SERVICE_HANDLE_DEFAULT),
+                // TODO: Load from Azure Key Vault
+                props.getProperty("signPublicKey"),
+                props.getProperty("signPrivateKey")
+        );
+
+        if (!fsID.equals(confID))
+            logger.warn("Embedded Nimble identity differs from configuration! Defaulting to embedded identity.");
+        else
+            logger.info("Embedded Nimble identity matches the configuration. All OK.");
+        return fsID;
     }
 
     public static void saveNimbleInfo(Storage.StorageDirectory sd, NimbleServiceID id) throws IOException {

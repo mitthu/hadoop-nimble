@@ -198,7 +198,7 @@ public class NimbleTester {
     /**
      * From ledger/src/signature.rs: test_compressed_pk_and_raw_signature_encoding()
      */
-    public static void test_verify_2(NimbleAPI n) throws DecoderException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException {
+    public static void test_verify_2(NimbleAPI n) throws DecoderException, NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, NimbleError {
         String
                 pk = "03A60909370C9CCB5DD3B909654AE158E21C4EE35C7A291C7197F38E22CA95B858",
                 r = "3341835E0BA33047E0B472F5622B157ED5879085213A1777963571220E48BF0F",
@@ -222,7 +222,7 @@ public class NimbleTester {
     /**
      * Test signature verification from static content.
      */
-    public static void test_verify_3(NimbleAPI n) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException {
+    public static void test_verify_3(NimbleAPI n) throws NoSuchAlgorithmException, InvalidParameterSpecException, InvalidKeySpecException, NoSuchProviderException, SignatureException, InvalidKeyException, NimbleError {
         // New Counter Response
         String pkStr = "BOFFzset0458QLqmae92__sjv_zTwJRZH9P0PeI3TvP7Kj1j_J7w-LxgwkkL7doHQtuUDP0BxM6vnvz9O8w0WKY",
                msgStr = "ziFukI0-0-WnvW_cgQ7bS6TGG6gkUr5DzneENpexTr0.NX5JoOCjT-u4aiLKJq9IWQ.AAAAAAAAAAA.VDqSDZA1EZfBg-KCcI5hFQ",

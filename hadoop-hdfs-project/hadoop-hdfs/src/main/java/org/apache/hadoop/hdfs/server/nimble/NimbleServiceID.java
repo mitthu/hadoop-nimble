@@ -31,7 +31,9 @@ public final class NimbleServiceID {
         this.identity = identity;
         this.publicKey = publicKey;
         this.handle = handle;
-        this.pk = parsePublicKey(publicKey);
+
+        if (this.publicKey != null)
+            this.pk = parsePublicKey(publicKey);
 
         // Assign signing keys. These keys are used for signing the tag stored in Nimble.
         KeyFactory kf = KeyFactory.getInstance("EC");
@@ -121,9 +123,28 @@ public final class NimbleServiceID {
     }
 
     public boolean equals(NimbleServiceID other) {
+        boolean signPublic, signPrivate;
+
+        // Compare public signing keys
+        if (this.signPublicKey != null && other.signPublicKey != null)
+            signPublic = Arrays.equals(this.signPublicKey.getEncoded(), other.signPublicKey.getEncoded());
+        else if (this.signPublicKey == other.signPublicKey) // both are null, or same objects
+            signPublic = true;
+        else
+            signPublic = false;
+
+        // Compare private signing keys
+        if (this.signPrivateKey != null && other.signPrivateKey != null)
+            signPrivate = Arrays.equals(this.signPrivateKey.getEncoded(), other.signPrivateKey.getEncoded());
+        else if (this.signPrivateKey == other.signPrivateKey)  // both are null, or same objects
+            signPrivate = true;
+        else
+            signPrivate = false;
+
         return Arrays.equals(this.identity, other.identity) &&
                 Arrays.equals(this.publicKey, other.publicKey) &&
-                Arrays.equals(this.handle, other.handle);
+                Arrays.equals(this.handle, other.handle) &&
+                signPublic && signPrivate;
     }
 
     public boolean valid() {
@@ -158,10 +179,16 @@ public final class NimbleServiceID {
      * @throws NoSuchAlgorithmException
      * @throws NoSuchProviderException
      */
-    public boolean verifySignature(byte[] signature, byte[] msg) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, NoSuchProviderException {
+    public boolean verifySignature(byte[] signature, byte[] msg) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, NoSuchProviderException, InvalidKeySpecException, NimbleError {
         // Available algorithms:
         // https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#KeyFactory
         Signature sg = Signature.getInstance("SHA256withECDSA", new BouncyCastleProvider());
+
+        if (pk == null)
+            if (publicKey != null)
+                pk = parsePublicKey(publicKey);
+            else
+                throw new NimbleError("No public key is set");
 
         // Verification
         sg.initVerify(pk);

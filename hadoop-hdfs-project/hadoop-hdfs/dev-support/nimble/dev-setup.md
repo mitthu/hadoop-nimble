@@ -34,10 +34,23 @@ Configuration options for tweaking Nimble are below.
 These can be set via the `core-site.xml` config file.
 
 fs.nimbleURI
-    : URL of NimbleLedger's REST endpoint.
+: URL of NimbleLedger's REST endpoint.
 
 fs.nimble.aggregateFrequency
-    : Number of operations to wait for before incrementing the counter.
+: Number of operations to wait for before incrementing the counter.
+
+fs.nimble.service.id
+: Identity of NimbleLedger based on "/serviceid". It is base64url encoded.
+
+fs.nimble.service.publickey
+: Public Key of NimbleLedger based on "/serviceid". It is base64url encoded.
+
+fs.nimble.service.handle
+: Handle to use for TMCS reported when formatting the HDFS file system. It is base64url encoded.
+After formatting the file system, look for a message like the following:
+    ```
+    2022-10-28 02:27:17,586 INFO nimble.TMCS: Formatted TMCS: NimbleServiceID{identity=C9JtOpmXyBd-anyeBbhr5RZ0ac2urm5Nt-z_C88wfvU, publicKey=A8ABjZekZrccR7eq7ASkDNt0689wd3klvWUW6wIzYmJz, handle=yfQi-y8v4k1GIfgjaKon7w, signPublicKey=MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEXNoPgT2QAqTPaTJk0wowGyl4fQx7UywYJoqaR8UyARHgJGld6QOaH3mv1OQYIKwZNb3fBr7gPMM7LypIWbNNbQ, signPrivateKey=MD4CAQAwEAYHKoZIzj0CAQYFK4EEAAoEJzAlAgEBBCBzv_4v64jTXxngYxfDnFQAG-3M8rhc5heXrB9sSnGcmw}
+    ```
 
 
 ### Setup Local cluster
