@@ -25,18 +25,18 @@ public class NimbleUtils {
     public static class Conf {
         public static final String SERVICE_IDENTITY_KEY      = "fs.nimble.service.id";
         public static final String SERVICE_IDENTITY_DEFAULT  = "";
-        public static final String SERVICE_PUBLIC_KEY_KEY    = "fs.nimble.service.publickey";
+        public static final String SERVICE_PUBLIC_KEY_KEY    = "fs.nimble.service.publicKey";
         public static final String SERVICE_PUBLIC_KEY_DEFAULT= "";
         public static final String SERVICE_HANDLE_KEY        = "fs.nimble.service.handle";
         public static final String SERVICE_HANDLE_DEFAULT    = null;
+        public static final String NIMBLE_LEDGER_URI_KEY     = "fs.nimbleURI";
+        public static final String NIMBLE_LEDGER_URI_DEFAULT = "http://localhost:8082/";
+        public static final String BATCH_SIZE_KEY            = "fs.nimble.batchSize";
+        public static final long BATCH_SIZE__DEFAULT         = 2;
     }
 
     // URL of NimbleLedger's REST endpoint
-    public static final String NIMBLEURI_KEY            = "fs.nimbleURI";
-    public static final String NIMBLEURI_DEFAULT        = "http://localhost:8082/";
     // Number of EditLog operations to batch
-    public static final String NIMBLE_AGGREGATE_FREQUENCY_KEY    = "fs.nimble.aggregateFrequency";
-    public static final long NIMBLE_AGGREGATE_FREQUENCY_DEFAULT  = 2;
     public static final String NIMBLE_INFO              = "NIMBLE";
     public static final String NIMBLE_FSIMAGE_EXTENSION = ".nimble";
     public static final boolean READABLE_LOG_OPERATIONS = true;

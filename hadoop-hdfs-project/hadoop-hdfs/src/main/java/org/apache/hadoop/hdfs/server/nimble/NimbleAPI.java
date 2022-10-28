@@ -31,7 +31,7 @@ public class NimbleAPI implements Closeable {
 
     public NimbleAPI(Configuration conf) {
         this.conf = conf;
-        this.nimble_rest_uri = URI.create(conf.get(NimbleUtils.NIMBLEURI_KEY, NimbleUtils.NIMBLEURI_DEFAULT));
+        this.nimble_rest_uri = URI.create(conf.get(NimbleUtils.Conf.NIMBLE_LEDGER_URI_KEY, NimbleUtils.Conf.NIMBLE_LEDGER_URI_DEFAULT));
         this.httpClient = HttpClients.custom()
                 .disableRedirectHandling()
                 .build();

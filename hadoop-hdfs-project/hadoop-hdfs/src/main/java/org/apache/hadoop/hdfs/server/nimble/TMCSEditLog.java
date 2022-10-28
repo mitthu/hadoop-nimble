@@ -78,7 +78,7 @@ public class TMCSEditLog {
         this.conf = conf;
         this.apply = apply;
         this.fsImage = fsImage;
-        this.aggregateFrequency = conf.getLong(NimbleUtils.NIMBLE_AGGREGATE_FREQUENCY_KEY, NimbleUtils.NIMBLE_AGGREGATE_FREQUENCY_DEFAULT);
+        this.aggregateFrequency = conf.getLong(NimbleUtils.Conf.BATCH_SIZE_KEY, NimbleUtils.Conf.BATCH_SIZE__DEFAULT);
 
         this.num = 0;
         this.nextCounter = fsImage.counter;
