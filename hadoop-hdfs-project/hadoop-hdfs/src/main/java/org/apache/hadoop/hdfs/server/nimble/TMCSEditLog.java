@@ -9,6 +9,8 @@ import java.io.*;
 import java.security.Signature;
 import java.security.SignatureException;
 
+import static org.apache.hadoop.hdfs.server.namenode.FSEditLogOpCodes.OP_NIMBLE_FLUSH;
+
 /**
  * We aggregate EditLog ops for fixed number, or till we encounter the special NimbleOp (or just flush?).
  * Then we increment TMCS. The Tag contains the PreviousTag with ops.
@@ -118,20 +120,17 @@ public class TMCSEditLog {
      */
     public synchronized void add(FSEditLogOp op) throws IOException {
         try {
-            // only works when AGGREGATE_FREQUENCY=1
-//            logger.debug(String.format("apply (before): op=%s opcode=%X counter=%d tag=%s",
-//                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
-
             out.write(op.opCode.getOpCode()); // OPCODE
             op.writeFields(out, NameNodeLayoutVersion.CURRENT_LAYOUT_VERSION); // Fields
             num++;
             logger.debug(String.format("record: opcode=%X %s", op.opCode.getOpCode(), op));
-            if (num >= aggregateFrequency) // OR a specialLogSegmentOp [opCode=OP_START_LOG_SEGMENT, txid=8 op
-                finalizeBatch();
 
-            // only works when AGGREGATE_FREQUENCY=1
-//            logger.debug(String.format("apply (after): op=%s opcode=%X counter=%d tag=%s",
-//                        op, op.opCode.getOpCode(), nextCounter-1, NimbleUtils.URLEncode(previousTag)));
+            boolean flushOp = op.opCode.getOpCode() == OP_NIMBLE_FLUSH.getOpCode();
+            if (num >= aggregateFrequency || flushOp) {
+                if (flushOp)
+                    logger.debug("NimbleFlushOp executed!");
+                finalizeBatch();
+            }
         } catch (IOException e) {
             logger.error(e); // Else some errors go unnoticed
             throw e;
@@ -173,8 +172,6 @@ public class TMCSEditLog {
             throw new NimbleError(String.format("Incorrect Counter: expecting=%d got=%d", (nextCounter-1), latest.counter));
 
         if (num > 0) {
-            // TODO: Implement a flush op to force flush the batch. This should be invoked when shutting down the NN.
-            logger.warn("No custom flush op is implemented!");
             logger.warn("the last " + num + " ops will not be verified. This is likely due to unclean shutdown.");
         }
 

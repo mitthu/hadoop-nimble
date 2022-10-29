@@ -1050,6 +1050,9 @@ public class FSEditLogLoader {
         fsNamesys.addCacheEntry(op.rpcClientId, op.rpcCallId);
       }
       break;
+    case OP_NIMBLE_FLUSH:
+      LOG.info(op.toString());
+      break;
     default:
       throw new IOException("Invalid operation read " + op.opCode);
     }

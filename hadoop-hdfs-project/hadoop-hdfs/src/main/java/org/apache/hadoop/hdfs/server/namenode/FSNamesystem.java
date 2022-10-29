@@ -123,6 +123,9 @@ import org.apache.hadoop.hdfs.server.namenode.metrics.ReplicatedBlocksMBean;
 import org.apache.hadoop.hdfs.server.protocol.SlowDiskReports;
 import org.apache.hadoop.ipc.ObserverRetryOnActiveException;
 import org.apache.hadoop.util.Time;
+import org.apache.hadoop.util.ShutdownHookManager;
+
+import static org.apache.hadoop.hdfs.server.namenode.FSImage.SHUTDOWN_HOOK_PRIORITY;
 import static org.apache.hadoop.util.Time.now;
 import static org.apache.hadoop.util.Time.monotonicNow;
 import static org.apache.hadoop.hdfs.server.namenode.top.metrics.TopMetrics.TOPMETRICS_METRICS_SOURCE_NAME;
@@ -1008,6 +1011,34 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       Preconditions.checkArgument(blockDeletionIncrement > 0,
           DFSConfigKeys.DFS_NAMENODE_BLOCK_DELETION_INCREMENT_KEY +
               " must be a positive integer.");
+
+      /*
+       * On shutdown, write a NimbleFlushOp barrier. If NN is in safeMode, then skip it because we have limited time
+       * to gracefully shutdown.
+       */
+      Runnable flushFinalizer = () -> {
+        FSEditLog editLog = this.getEditLog();
+        if (!this.inActiveState()) {
+          LOG.info("Do not execute NimbleFlushOp because namenode is not in active state.");
+          return;
+        } else if (this.isInSafeMode()) {
+          LOG.info("Do not execute NimbleFlushOp because namenode is in safe mode.");
+          return;
+        } else if (editLog == null) {
+          LOG.warn("editLog is NULL. Cannot execute NimbleFlushOp.");
+          return;
+        } else if (editLog.editLogStream == null) {
+          LOG.warn("editLogStream is NULL. Cannot execute NimbleFlushOp.");
+          return;
+        } else if (!editLog.isOpenForWrite()) {
+          LOG.error("EditLog not open for write. Do not execute NimbleFlushOp for nimble.");
+          return;
+        }
+        editLog.logNimbleFlush();
+        editLog.logSync();
+      };
+      // Larger priority is higher priority
+      ShutdownHookManager.get().addShutdownHook(flushFinalizer, SHUTDOWN_HOOK_PRIORITY + 1);
     } catch(IOException e) {
       LOG.error(getClass().getSimpleName() + " initialization failed.", e);
       close();

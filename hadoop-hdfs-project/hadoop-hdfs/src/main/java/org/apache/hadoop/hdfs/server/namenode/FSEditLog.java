@@ -101,6 +101,7 @@ import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.AddErasureCodingPolicy
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.EnableErasureCodingPolicyOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.DisableErasureCodingPolicyOp;
 import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.RemoveErasureCodingPolicyOp;
+import org.apache.hadoop.hdfs.server.namenode.FSEditLogOp.NimbleFlushOp;
 import org.apache.hadoop.hdfs.server.namenode.JournalSet.JournalAndStream;
 import org.apache.hadoop.hdfs.server.namenode.metrics.NameNodeMetrics;
 import org.apache.hadoop.hdfs.server.nimble.TMCSEditLog;
@@ -501,9 +502,8 @@ public class FSEditLog implements LogsPurgeable {
 
     long start = monotonicNow();
     try {
-//      LOG.info("Filename for FSImage: " + storage.getHighestFsImageName());
-      tmcsEdits.add(op);
       editLogStream.write(op);
+      tmcsEdits.add(op);
     } catch (IOException ex) {
       // All journals failed, it is handled in logSync.
     } finally {
@@ -1070,6 +1070,14 @@ public class FSEditLog implements LogsPurgeable {
   void logGenerationStamp(long genstamp) {
     SetGenstampV2Op op = SetGenstampV2Op.getInstance(cache.get())
         .setGenerationStamp(genstamp);
+    logEdit(op);
+  }
+
+  /**
+   * Add nimble flush record to edit log
+   */
+  void logNimbleFlush() {
+    NimbleFlushOp op = NimbleFlushOp.getInstance(cache.get());
     logEdit(op);
   }
 

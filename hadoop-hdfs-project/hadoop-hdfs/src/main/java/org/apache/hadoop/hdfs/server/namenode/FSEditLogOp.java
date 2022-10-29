@@ -69,6 +69,7 @@ import static org.apache.hadoop.hdfs.server.namenode.FSEditLogOpCodes.OP_UPDATE_
 import static org.apache.hadoop.hdfs.server.namenode.FSEditLogOpCodes.OP_UPDATE_MASTER_KEY;
 import static org.apache.hadoop.hdfs.server.namenode.FSEditLogOpCodes.OP_SET_STORAGE_POLICY;
 import static org.apache.hadoop.hdfs.server.namenode.FSEditLogOpCodes.OP_SET_QUOTA_BY_STORAGETYPE;
+import static org.apache.hadoop.hdfs.server.namenode.FSEditLogOpCodes.OP_NIMBLE_FLUSH;
 
 import java.io.DataInput;
 import java.io.DataInputStream;
@@ -3340,7 +3341,54 @@ public abstract class FSEditLogOp {
           "DELEGATION_KEY").get(0));
     }
   }
-  
+
+  static class NimbleFlushOp extends FSEditLogOp {
+    NimbleFlushOp() {
+      super(OP_NIMBLE_FLUSH);
+    }
+
+    static NimbleFlushOp getInstance(OpInstanceCache cache) {
+      return cache.get(OP_NIMBLE_FLUSH);
+    }
+
+    @Override
+    void resetSubFields() {
+      // no data stored in these ops yet
+    }
+
+    @Override
+    public void readFields(DataInputStream in, int logVersion)
+            throws IOException {
+      // no data stored in these ops yet
+    }
+
+    @Override
+    public
+    void writeFields(DataOutputStream out) throws IOException {
+      // no data stored
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder builder = new StringBuilder();
+      builder.append("NimbleFlushOp [opCode=")
+              .append(opCode)
+              .append(", txid=")
+              .append(txid)
+              .append("]");
+      return builder.toString();
+    }
+
+    @Override
+    protected void toXml(ContentHandler contentHandler) throws SAXException {
+      // no data stored
+    }
+
+    @Override void fromXml(Stanza st) throws InvalidXmlException {
+      // do nothing
+    }
+  }
+
   static class LogSegmentOp extends FSEditLogOp {
     private LogSegmentOp(FSEditLogOpCodes code) {
       super(code);
