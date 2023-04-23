@@ -9,7 +9,7 @@ Compiling and installing Nimble-aware Hadoop (referred to as Hadoop from now on)
 
 Hadoop has two kinds of nodes: Namenode and Datanode. The Namenode maintains the structure of the file system and all the metadata. The Datanode(s) hold the actual block that make up the files. For our setup, we will run two nodes: one Namenode and one Datanode.
 
-The compilation can be done on any machine. It creates a single tar.gz archive containing both the Namenode and Datanode binaries. The target machine on which Hadoop will be run only requires the Java runtime and the tar.gz archive. We use Ubuntu 18.04 for our tasks.
+The compilation can be done on any machine. It creates a single tar.gz archive containing both the Namenode and Datanode binaries. The target machine on which Hadoop will be run only requires the Java runtime and the tar.gz archive. These instructions are tested on Ubuntu 18.04 (Bionic). The primary requirement from the Linux ditribution is OpenJDK v8.
 
 `Note`: To benchmark, you need to also compile the upstream (or vanilla) Hadoop version 3.3.3. The compilation steps are identical to that of Nimble-aware Hadoop.
 
@@ -78,16 +78,35 @@ source ~/.bashrc
 Create directory to store the Hadoop file system data. You can also mount another disk to store this data.
 
 ``` bash
-sudo mkdir /mnt/data
+sudo mkdir /mnt/store
 
 # Make yourself the owner
-sudo chown -R `whoami` /mnt/data
+sudo chown -R `whoami` /mnt/store
 ```
 
 
 ### Configure
 
-Add necessary configuration to run Hadoop on both the Namenode and Datanode. Use:
+This step is identical for both the Namenode and the Datanode. First, we configure Hadoop to use the correct storage directories.
+
+```bash
+echo "\
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>
+<configuration>
+	<property>
+		<name>dfs.name.dir</name>
+		<value>/mnt/store/namenode</value>
+	</property>
+	<property>
+		<name>dfs.data.dir</name>
+		<value>/mnt/store/datanode</value>
+	</property>
+</configuration>
+" | sudo tee /opt/hadoop-nimble/etc/hadoop/hdfs-site.xml
+```
+
+Then, we add the necessary configuration to run Hadoop.
 
 ```bash
 echo "\
@@ -226,6 +245,7 @@ On Namenode:
 ```bash
 # Cleanup
 /opt/hadoop-nimble/bin/hdfs --daemon stop namenode
+rm -rf /mnt/store/*
 
 # Format namenode
 /opt/hadoop-nimble/bin/hdfs namenode -format
@@ -239,6 +259,7 @@ On Datanode:
 ``` bash
 # Cleanup
 /opt/hadoop-nimble/bin/hdfs --daemon stop datanode
+rm -rf /mnt/store/*
 
 # Start
 /opt/hadoop-nimble/bin/hdfs --daemon start datanode
