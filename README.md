@@ -9,7 +9,7 @@ Compiling and installing Nimble-aware Hadoop (referred to as Hadoop from now on)
 
 Hadoop has two kinds of nodes: Namenode and Datanode. The Namenode maintains the structure of the file system and all the metadata. The Datanode(s) hold the actual block that make up the files. For our setup, we will run two nodes: one Namenode and one Datanode.
 
-The compilation can be done on any machine. It creates a single tar.gz archive containing both the Namenode and Datanode binaries. The target machine on which Hadoop will be run only requires the Java runtime and the tar.gz archive. We use Ubuntu 22.04 for our tasks.
+The compilation can be done on any machine. It creates a single tar.gz archive containing both the Namenode and Datanode binaries. The target machine on which Hadoop will be run only requires the Java runtime and the tar.gz archive. We use Ubuntu 18.04 for our tasks.
 
 `Note`: To benchmark, you need to also compile the upstream (or vanilla) Hadoop version 3.3.3. The compilation steps are identical to that of Nimble-aware Hadoop.
 
@@ -49,20 +49,41 @@ You need to repeat the below steps for each machine that will run Hadoop. In our
 ```bash
 # Pre-requisites
 sudo apt update
-sudo apt install -y default-jre
+sudo apt install -y openjdk-8-jdk
 
-# Setup environment variables
-export JAVA_HOME=/usr/lib/jvm/default-java
-export PATH=/opt/hadoop-3.3.3/bin:$PATH
+# Setup JAVA_HOME for current user & root
+echo 'export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64' |
+  tee -a ~/.bashrc |
+  sudo tee -a /root/.bashrc
+source ~/.bashrc
 ```
 
 Copy the archive located at  `hadoop-dist/target/hadoop-3.3.3.tar.gz` to the  machine where you want to install Hadoop. Then do the following:
 
 ```bash
 # Unpack archive
-sudo tar -xvf hadoosudo mv /opt/hadoop-3.3.3/
-sudo /opt/hadoop-nimblep-project-dist-3.3.3.tar.gz -C /opt/
+sudo tar -xvf hadoop-3.3.3.tar.gz -C /opt
+sudo mv /opt/hadoop-3.3.3 /opt/hadoop-nimble
+
+# Make yourself the owner the Hadoop installation
+sudo chown -R `whoami` /opt/hadoop-nimble
+
+# Add Hadoop binaries to your PATH
+echo 'export PATH=$PATH:/opt/hadoop-nimble/bin' |
+  tee -a ~/.bashrc |
+  sudo tee -a /root/.bashrc
+source ~/.bashrc
 ```
+
+Create directory to store the Hadoop file system data. You can also mount another disk to store this data.
+
+``` bash
+sudo mkdir /mnt/data
+
+# Make yourself the owner
+sudo chown -R `whoami` /mnt/data
+```
+
 
 ### Configure
 
@@ -89,7 +110,7 @@ echo "\
 " | sudo tee /opt/hadoop-nimble/etc/hadoop/core-site.xml
 ```
 
-Replace `namenodeip` with network accessible IP address of the machine that will run the Namenode. Replace `nimbleURI` with the IP address running the Nimble REST endpoint.
+Edit the newly created file `/opt/hadoop-nimble/etc/hadoop/core-site.xml` and replace `namenodeip` with network accessible IP address of the machine that will run the Namenode. Alsp replace `nimbleURI` with the IP address running the Nimble REST endpoint.
 
 You can access Namenode's web UI from `http://namenodeip:9870`.
 
@@ -135,7 +156,9 @@ Start Datanode
 hdfs --daemon start datanode
 ```
 
-Logs are inside `/opt/hadoop-namenode/logs`. To quickly wipe the existing installtion and start over again, see Troublesooting -- "Reset installation".
+Logs are inside `/opt/hadoop-nimble/logs`. After starting the daemons, look at the logs for potential problems.
+
+To quickly wipe the existing installtion and start over again, see Troublesooting -- "Reset installation".
 
 
 ### Verify
@@ -146,40 +169,41 @@ Formatting the file system, produces for a message like:
 ```
 
 
-We will test our instalation using Hadoop WebHDFS which exposes a RESTful HTTP API.
+You can test the instalation using Hadoop's WebHDFS API. Run the below commands either on the Namenode or the Datanode. Feel free to run only a few or all of the commands.
 
 ```bash
 # Set the HDFS user
 USER=root
+API=http://<namenodeip>:9870/webhdfs/v1
+DNAPI=http://<datanodeip>:9864/webhdfs/v1
 
-# Change perms
-curl -i -X PUT "http://namenode.lxd:9870/webhdfs/v1/?op=SETPERMISSION&permission=777&user.name=$USER"
+# Change perms of /
+curl -i -X PUT "$API/?op=SETPERMISSION&permission=777&user.name=$USER"
 
 # CREATE file (single block)
-curl -i -X PUT -T /opt/hadoop-3.3.3/README.txt "http://datanode.lxd:9864/webhdfs/v1/foo?op=CREATE&user.name=$USER&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
+curl -i -X PUT -T /opt/hadoop-nimble/README.txt "$DNAPI/foo?op=CREATE&user.name=$USER&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
 
 # CREATE file (multi block)
-curl -i -X PUT -T /opt/hadoop-3.3.3/share/hadoop/yarn/hadoop-yarn-applications-catalog-webapp-3.3.3.war "http://datanode.lxd:9864/webhdfs/v1/yarn.war?op=CREATE&user.name=$USER&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
+curl -i -X PUT -T /opt/hadoop-nimble/share/hadoop/yarn/hadoop-yarn-applications-catalog-webapp-3.3.3.war "$DNAPI/yarn.war?op=CREATE&user.name=$USER&namenoderpcaddress=localhost:9000&createflag=&createparent=true&overwrite=false&permission=777"
 
 # APPEND file
-curl -i -X POST -T /opt/hadoop-3.3.3/README.txt "http://datanode.lxd:9864/webhdfs/v1/foo?op=APPEND&permission=777&user.name=$USER&namenoderpcaddress=namenode.lxd:9000"
+curl -i -X POST -T /opt/hadoop-3.3.3/README.txt "$DNAPI/foo?op=APPEND&permission=777&user.name=$USER&namenoderpcaddress=namenode.lxd:9000"
 
 # READ file
-curl -i "http://datanode.lxd:9864/webhdfs/v1/foo?op=OPEN&user.name=$USER&namenoderpcaddress=namenode.lxd:9000"
+curl -i "$DNAPI/foo?op=OPEN&user.name=$USER&namenoderpcaddress=namenode.lxd:9000"
 
 # STAT file
-curl -i  "http://namenode.lxd:9870/webhdfs/v1/foo?op=LISTSTATUS"
-curl -i  "http://namenode.lxd:9870/webhdfs/v1/foo?op=GETFILESTATUS"
+curl -i  "$API/foo?op=LISTSTATUS"
+curl -i  "$API/foo?op=GETFILESTATUS"
 
 # DELETE file
-curl -i -X DELETE "http://namenode.lxd:9870/webhdfs/v1/foo?op=DELETE&recursive=true&user.name=$USER"
+curl -i -X DELETE "$API/foo?op=DELETE&recursive=true&user.name=$USER"
 
 # MKDIR
-curl -i -X PUT "http://namenode.lxd:9870/webhdfs/v1/thedir?op=MKDIRS&permission=777&user.name=$USER"
+curl -i -X PUT "$API/thedir?op=MKDIRS&permission=777&user.name=$USER"
 ```
 
-Note: The default port for WebHDFS is 9870.
-
+All commands in the WebHDFS API can be found [here](https://hadoop.apache.org/docs/r3.3.3/hadoop-project-dist/hadoop-hdfs/WebHDFS.html).
 
 ## Troubleshoot
 
@@ -187,11 +211,13 @@ Note: The default port for WebHDFS is 9870.
 
 ```bash
 # Namenode
-tail -f /opt/hadoop-3.3.3/logs/hadoop-root-namenode-namenode.log
+tail -f /opt/hadoop-nimble/logs/hadoop-<user>-namenode-<hostname>.log
 
 # Datanode
-tail -f /opt/hadoop-3.3.3/logs/hadoop-root-datanode-datanode.log
+tail -f /opt/hadoop-nimble/logs/hadoop-<user>-datanode-<hostname>.log
 ```
+
+Where `<user>` refers to your UNIX username (i.e., output of **whoami**) and `<hostname>` refers to the hostname of the current machine.
 
 ### Reset installation
 In case of unrecoverable errors, you can reset the entire installation using below steps.
