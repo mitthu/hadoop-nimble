@@ -11,7 +11,7 @@ Hadoop has two kinds of nodes: Namenode and Datanode. The Namenode maintains the
 
 The compilation can be done on any machine. It creates a single tar.gz archive containing both the Namenode and Datanode binaries. The target machine on which Hadoop will be run only requires the Java runtime and the tar.gz archive. These instructions are tested on Ubuntu 18.04 (Bionic). The primary requirement from the Linux ditribution is OpenJDK v8.
 
-`Note`: To benchmark, you need to also compile the upstream (or vanilla) Hadoop version 3.3.3. The compilation steps are identical to that of Nimble-aware Hadoop.
+**Note**: To benchmark, you need to also compile the upstream (or vanilla) Hadoop version 3.3.3. The compilation steps are identical to that of Nimble-aware Hadoop.
 
 
 ## Compile
@@ -123,7 +123,7 @@ echo "\
 	</property>
 	<property>
 		<name>fs.nimble.batchSize</name>
-		<value>10</value>
+		<value>100</value>
 	</property>
 </configuration>
 " | sudo tee /opt/hadoop-nimble/etc/hadoop/core-site.xml
@@ -135,27 +135,16 @@ You can access Namenode's web UI from `http://namenodeip:9870`.
 
 Configuration options:
 
-fs.defaultFS
-: Endpoint for this HDFS file system. All 
-
-fs.nimbleURI
-: URL of NimbleLedger's REST endpoint
-
-fs.nimble.batchSize
-: Number of operations to batch before incrementing the counter
+- **fs.defaultFS**: Endpoint for this HDFS file system (points to the Namenode)
+- **fs.nimbleURI**: URL of NimbleLedger's REST endpoint
+- **fs.nimble.batchSize**: Number of operations to batch before incrementing the counter
+- **fs.nimble.service.id** (optional): Expect this identity for NimbleLedger (against "/serviceid"). It is base64url encoded.
+- **fs.nimble.service.publicKey** (optional): Expected this public Key for NimbleLedger. It is base64url encoded.
+- **fs.nimble.service.handle** (optional): Ledger handle (or name) to use for formatting and reporting. It is base64url encoded.
 
 
-**Optional**:
-
-fs.nimble.service.id
-: Expect this identity for NimbleLedger (against "/serviceid"). It is base64url encoded.
-
-fs.nimble.service.publicKey
-: Expected this public Key for NimbleLedger. It is base64url encoded.
-
-fs.nimble.service.handle
-: Ledger handle (or name) to use for formatting and reporting. It is base64url encoded.
-
+**Important!**
+Ensure that the Namenode and the Datanode can reach eachother via their hostnames. The commands `$ hostname` and `$ hostname -f` will give you the hostname and fully qualified hostname (or domain name) of a given machine. You can modify `/etc/hosts` to map the hostnames to the corresponding network-reachable IP addresses (don't use 127.0.0.1, etc.). The Namenode should have a mapping for the Datanode and the Datanode should have a mapping for the Namenode.
 
 ### Run
 
