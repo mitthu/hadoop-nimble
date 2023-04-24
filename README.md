@@ -166,7 +166,7 @@ hdfs --daemon start datanode
 
 Logs are inside `/opt/hadoop-nimble/logs`. After starting the daemons, look at the logs for potential problems.
 
-To quickly wipe the existing installtion and start over again, see Troublesooting -- "Reset installation".
+To quickly wipe the existing installtion and start over again, see [Troublesooting → Reset installation](#reset-installation).
 
 
 ### Verify
@@ -222,6 +222,8 @@ We will run the following two benchmarks:
 - HiBench
 
 You can run the benchmarks from any node that have the Hadoop binaires. For our benchmarking, we will use the Namenode.
+
+Finally, to compare against the baseline, you will need to install the upstream version of Hadoop 3.3.3 which you can download from "https://archive.apache.org/dist/hadoop/common/hadoop-3.3.3/hadoop-3.3.3.tar.gz". You can follow the same steps from [Deploy](#deploy) and install it inside **/opt/hadoop-upstream**. To switch between the Nimble-aware Hadoop and upsteam Hadoop, refer to scripts in [Troubleshoot → Scripts to switch installations](#scripts-to-switch-installations).
 
 ### NNThroughputBenchmark
 
@@ -391,6 +393,87 @@ rm -rf /mnt/store/*
 
 # Start
 /opt/hadoop-nimble/bin/hdfs --daemon start datanode
+```
+
+
+### Scripts to switch installations
+The below scripts can be used to switch back-and-forth between the upsteam and our Hadoop installations.
+These scripts can also be used to reset the underlying installations and start afresh.
+
+For Namenode:
+```bash
+#!/bin/bash
+# name: nnreset.sh
+# usage: ./nnreset.sh [ nimble / upstream ]
+
+UPSTREAM=/opt/hadoop-upstream
+NIMBLE=/opt/hadoop-nimble
+STORAGE=/mnt/store
+
+# Switch to?
+if   [ "$1" = "nimble"   ]; then
+        BASE=$NIMBLE
+elif [ "$1" = "upstream" ]; then
+        BASE=$UPSTREAM
+else
+        echo "usage: $0 [ nimble / upstream ]"
+        exit 1
+fi
+
+echo "Switching to $BASE"
+
+# Stop existing services
+$UPSTREAM/bin/hdfs --daemon stop namenode
+$UPSTREAM/bin/yarn --daemon stop resourcemanager
+$NIMBLE/bin/hdfs   --daemon stop namenode
+$NIMBLE/bin/yarn   --daemon stop resourcemanager
+
+# Remove storage
+rm -rf $STORAGE/*
+
+# Initialize
+mkdir -p $STORAGE
+$BASE/bin/hdfs namenode -format
+$BASE/bin/hdfs --daemon start namenode
+$BASE/bin/yarn --daemon start resourcemanager
+```
+
+For Datanode:
+```bash
+#!/bin/bash
+# name: dnreset.sh
+# usage: ./dnreset.sh [ nimble / upstream ]
+
+UPSTREAM=/opt/hadoop-upstream
+NIMBLE=/opt/hadoop-nimble
+STORAGE=/mnt/store
+
+# Switch to?
+if   [ "$1" = "nimble"   ]; then
+        BASE=$NIMBLE
+elif [ "$1" = "upstream" ]; then
+        BASE=$UPSTREAM
+else
+        echo "usage: $0 [ nimble / upstream ]"
+        exit 1
+fi
+
+echo "Switching to $BASE"
+
+# Stop existing services
+$UPSTREAM/bin/hdfs --daemon stop datanode
+$UPSTREAM/bin/yarn --daemon stop nodemanager
+$NIMBLE/bin/hdfs   --daemon stop datanode
+$NIMBLE/bin/yarn   --daemon stop nodemanager
+
+# Remove storage
+rm -rf $STORAGE/*
+
+# Initialize
+mkdir -p $STORAGE
+$BASE/bin/hdfs namenode -format
+$BASE/bin/hdfs --daemon start datanode
+$BASE/bin/yarn --daemon start nodemanager
 ```
 
 
