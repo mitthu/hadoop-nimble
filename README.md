@@ -5,7 +5,7 @@ Compiling and installing Nimble-aware Hadoop (referred to as Hadoop from now on)
 * Compile
 * Deploy
 * Benchmark
-* Troubleshooting
+* Troubleshoot
 
 Hadoop has two kinds of nodes: Namenode and Datanode. The Namenode maintains the structure of the file system and all the metadata. The Datanode(s) hold the actual block that make up the files. For our setup, we will run two nodes: one Namenode and one Datanode.
 
@@ -213,6 +213,142 @@ curl -i -X PUT "$API/thedir?op=MKDIRS&permission=777&user.name=$USER"
 
 All commands in the WebHDFS API can be found [here](https://hadoop.apache.org/docs/r3.3.3/hadoop-project-dist/hadoop-hdfs/WebHDFS.html).
 
+
+## Benchmark
+
+We will run the following two benchmarks:
+
+- NNThroughputBenchmark
+- HiBench
+
+You can run the benchmarks from any node that have the Hadoop binaires. For our benchmarking, we will use the Namenode.
+
+### NNThroughputBenchmark
+
+The basic structure is as follows:
+
+```bash
+hadoop org.apache.hadoop.hdfs.server.namenode.NNThroughputBenchmark \
+    -op create -threads 10 -files 10
+```
+
+[Here](https://hadoop.apache.org/docs/r3.3.3/hadoop-project-dist/hadoop-common/Benchmarking.html) is the documentation of NNThroughputBenchmark.
+
+
+For our purposes, use the following script to run all the benchmarks in the paper:
+
+```bash
+#!/bin/bash -e
+THREADS=64
+FILES=500000
+DIRS=500000
+
+function bench {
+        op=$1
+        echo "Running $op:"
+        hadoop org.apache.hadoop.hdfs.server.namenode.NNThroughputBenchmark -op $*
+}
+
+bench create      -threads $THREADS -files $FILES
+bench mkdirs      -threads $THREADS -dirs $DIRS
+bench open        -threads $THREADS -files $FILES
+bench delete      -threads $THREADS -files $FILES
+bench fileStatus  -threads $THREADS -files $FILES
+bench rename      -threads $THREADS -files $FILES
+bench clean
+```
+
+### HiBench
+
+We will first get HiBench and compile it. We run the following commands on the Namenode.
+It requires OpenJDK 8 which should already be installed.
+
+```bash
+# Install pre-requisites
+sudo apt-get install -y git maven python2.7
+sudo ln -s /usr/bin/python2.7 /usr/bin/python2
+
+# Get HiBench
+cd ~
+git clone https://github.com/Intel-bigdata/HiBench.git
+cd HiBench/
+git checkout 00aa105
+
+# Compile (re-run if compilation fails)
+mvn -Phadoopbench -Dhadoop=3.2 -DskipTests package
+```
+
+You will likely need to re-run the build once again when it fails. There seems to be a bug in their build script. 
+For detailed instructions on building HiBench, you can refer to [this page](https://github.com/Intel-bigdata/HiBench/blob/master/docs/build-hibench.md).
+
+Next you will need to configure HiBench.
+
+```bash
+# Inside HiBench directory
+echo -n '# Configure
+hibench.hadoop.home           /opt/hadoop-nimble
+hibench.hadoop.executable     ${hibench.hadoop.home}/bin/hadoop
+hibench.hadoop.configure.dir  ${hibench.hadoop.home}/etc/hadoop
+hibench.hdfs.master           hdfs://<namenodeip>:9000
+hibench.hadoop.release        apache
+' >conf/hadoop.conf
+
+# Configure YARN (on Namenode)
+echo "\
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>
+<configuration>
+	<property>
+		<name>yarn.resourcemanager.hostname</name>
+		<value><namenodeip></value>
+	</property>
+</configuration>
+" | sudo tee /opt/hadoop-nimble/etc/hadoop/yarn-site.xml
+
+
+# Start Hadoop's Resource Manager (on Namenode)
+yarn --daemon start resourcemanager
+
+# Start Hadoop's Node Manager (on Datanode)
+yarn --daemon start nodemanager
+```
+
+Replace `<namenodeip>` with the Namenode's IP address (at both places in the above code snippet). The Yarn logs are located inside `/opt/hadoop-nimble/logs/`.
+
+The basic structure to run a benchmark is:
+
+```bash
+bin/workloads/micro/wordcount/prepare/prepare.sh
+bin/workloads/micro/wordcount/hadoop/run.sh
+
+# To view the thoughput
+cat report/hibench.report
+```
+
+For our purposes, run the following script:
+
+```bash
+#!/bin/bash
+
+size=large
+sed -ie "s/hibench.scale.profile .*/hibench.scale.profile $size/g" conf/hibench.conf
+
+function bench {
+        kind=$1
+        name=$2
+        bin/workloads/$kind/$name/prepare/prepare.sh
+        bin/workloads/$kind/$name/hadoop/run.sh
+}
+
+bench micro     wordcount
+bench micro     sort
+bench micro     terasort
+bench micro     dfsioe
+bench websearch pagerank
+```
+
+To get the throughputs, see the file **report/hibench.report**.
+
 ## Troubleshoot
 
 ### View logs
@@ -234,6 +370,8 @@ On Namenode:
 ```bash
 # Cleanup
 /opt/hadoop-nimble/bin/hdfs --daemon stop namenode
+/opt/hadoop-nimble/bin/yarn --daemon stop resourcemanager
+
 rm -rf /mnt/store/*
 
 # Format namenode
@@ -241,11 +379,12 @@ rm -rf /mnt/store/*
 
 # Start
 /opt/hadoop-nimble/bin/hdfs --daemon start namenode
+/opt/hadoop-nimble/bin/yarn --daemon start resourcemanager
 ```
 
 On Datanode:
 
-``` bash
+```bash
 # Cleanup
 /opt/hadoop-nimble/bin/hdfs --daemon stop datanode
 rm -rf /mnt/store/*
