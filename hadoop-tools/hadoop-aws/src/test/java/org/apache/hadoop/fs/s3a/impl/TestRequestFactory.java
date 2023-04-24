@@ -24,7 +24,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import software.amazon.awssdk.awscore.AwsRequest;
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
-import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -80,7 +79,7 @@ public class TestRequestFactory extends AbstractHadoopTestBase {
    */
   @Test
   public void testRequestFactoryWithCannedACL() throws Throwable {
-    ObjectCannedACL acl = ObjectCannedACL.BUCKET_OWNER_FULL_CONTROL;
+    String acl = "bucket-owner-full-control";
     RequestFactory factory = RequestFactoryImpl.builder()
         .withBucket("bucket")
         .withCannedACL(acl)
@@ -91,17 +90,20 @@ public class TestRequestFactory extends AbstractHadoopTestBase {
 
     Assertions.assertThat(factory.newPutObjectRequestBuilder(path, null, 128, false)
             .build()
-            .acl())
+            .acl()
+            .toString())
         .describedAs("ACL of PUT")
         .isEqualTo(acl);
     Assertions.assertThat(factory.newCopyObjectRequestBuilder(path, path2, md)
             .build()
-            .acl())
+            .acl()
+            .toString())
         .describedAs("ACL of COPY")
         .isEqualTo(acl);
     Assertions.assertThat(factory.newMultipartUploadRequestBuilder(path, null)
             .build()
-            .acl())
+            .acl()
+            .toString())
         .describedAs("ACL of MPU")
         .isEqualTo(acl);
   }

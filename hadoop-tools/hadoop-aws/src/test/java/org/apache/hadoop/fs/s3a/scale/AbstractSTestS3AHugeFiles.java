@@ -27,9 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntFunction;
 
-import com.amazonaws.event.ProgressEvent;
-import com.amazonaws.event.ProgressEventType;
-import com.amazonaws.event.ProgressListener;
 import org.assertj.core.api.Assertions;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
@@ -49,6 +46,8 @@ import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.S3ATestUtils;
 import org.apache.hadoop.fs.s3a.Statistic;
+import org.apache.hadoop.fs.s3a.impl.ProgressListener;
+import org.apache.hadoop.fs.s3a.impl.ProgressListenerEvent;
 import org.apache.hadoop.fs.s3a.statistics.BlockOutputStreamStatistics;
 import org.apache.hadoop.fs.statistics.IOStatistics;
 import org.apache.hadoop.util.Progressable;
@@ -299,10 +298,9 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
   }
 
   /**
-   * Progress callback from AWS. Likely to come in on a different thread.
+   * Progress callback.
    */
-  private final class ProgressCallback implements Progressable,
-      ProgressListener {
+  private final class ProgressCallback implements Progressable, ProgressListener {
     private AtomicLong bytesTransferred = new AtomicLong(0);
     private AtomicInteger failures = new AtomicInteger(0);
     private final ContractTestUtils.NanoTimer timer;
@@ -316,11 +314,8 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
     }
 
     @Override
-    public void progressChanged(ProgressEvent progressEvent) {
-      ProgressEventType eventType = progressEvent.getEventType();
-      if (eventType.isByteCountEvent()) {
-        bytesTransferred.addAndGet(progressEvent.getBytesTransferred());
-      }
+    public void progressChanged(ProgressListenerEvent eventType, int transferredBytes) {
+
       switch (eventType) {
       case TRANSFER_PART_FAILED_EVENT:
         // failure
@@ -329,6 +324,7 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
         break;
       case TRANSFER_PART_COMPLETED_EVENT:
         // completion
+        bytesTransferred.addAndGet(transferredBytes);
         long elapsedTime = timer.elapsedTime();
         double elapsedTimeS = elapsedTime / 1.0e9;
         long written = bytesTransferred.get();
@@ -336,20 +332,15 @@ public abstract class AbstractSTestS3AHugeFiles extends S3AScaleTestBase {
         LOG.info(String.format(
             "Event %s; total uploaded=%d MB in %.1fs;" +
                 " effective upload bandwidth = %.2f MB/s",
-            progressEvent,
+            eventType,
             writtenMB, elapsedTimeS, writtenMB / elapsedTimeS));
         break;
       default:
-        if (eventType.isByteCountEvent()) {
-          LOG.debug("Event {}", progressEvent);
-        } else {
-          LOG.info("Event {}", progressEvent);
-        }
+        // nothing
         break;
       }
     }
 
-    @Override
     public String toString() {
       String sb = "ProgressCallback{"
           + "bytesTransferred=" + bytesTransferred +
